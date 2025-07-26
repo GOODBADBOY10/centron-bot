@@ -18,5 +18,8 @@
   "bugs": {
     "url": "https://github.com/GOODBADBOY10/centron-bot/issues"
   },
-  "homepage": "https://github.com/GOODBADBOY10/centron-bot#readme"
+  "homepage": "https://github.com/GOODBADBOY10/centron-bot#readme",
+  "dependencies": {
+    "axios": "^1.11.0"
+  }
 }
