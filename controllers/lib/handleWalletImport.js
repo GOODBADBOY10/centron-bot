@@ -1,4 +1,5 @@
 import { saveUser, addWalletToUser, saveUserStep } from "./db.js";
+import { encryptWallet } from "./generateWallet.js";
 import { handleWallets } from "./handleWallets.js";
 import { importWalletFromInput } from "./importWallet.js";
 
@@ -10,15 +11,25 @@ export async function handleWalletImport(ctx, userId) {
                 parse_mode: "Markdown"
             });
         }
+        const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET;
+
         const imported = await importWalletFromInput(userInput);
-        const userToString = userId.toString();
-        await addWalletToUser(userToString, {
+
+        const encryptedPrivateKey = encryptWallet(imported.privateKey, ENCRYPTION_SECRET);
+        const encryptedSeedPhrase = imported.phrase
+            ? encryptWallet(imported.phrase, ENCRYPTION_SECRET)
+            : null;
+
+        const walletToSave = {
             address: imported.address,
-            privateKey: imported.privateKey,
-            ...(imported.phrase ? { seedPhrase: imported.phrase } : {}),
-        });
+            privateKey: encryptedPrivateKey,
+            ...(encryptedSeedPhrase ? { seedPhrase: encryptedSeedPhrase } : {}),
+        };
+
+        await addWalletToUser(userId.toString(), walletToSave);
         await saveUser(userId, { awaitingWallet: false });
         await saveUserStep(userId, null);
+
         await ctx.reply(
             `✅ Wallet connected!\n\nAddress: \`${imported.address}\` (tap to copy)\n\nType: ${imported.type}`,
             { parse_mode: "Markdown" }
