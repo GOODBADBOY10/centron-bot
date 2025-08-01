@@ -60,7 +60,7 @@ export const handleDcaOrder = async (ctx) => {
             const wallet = walletMap[key];
             const explorerWalletLink = `https://suiexplorer.com/address/${wallet.address || wallet.walletAddress}?network=mainnet`;
             const displayName = wallet?.name || `Wallet ${key.replace("w", "")}`;
-            text += `💳 <a href="${explorerWalletLink}">${displayName}</a>\n`;
+            text += `💳 <a href="${explorerWalletLink}">${displayName}</a>\n\n`;
         });
 
         text += `📘 <a href="https://example.com/how-to-use">How to Use?</a>`;
@@ -100,6 +100,7 @@ export const handleDcaOrder = async (ctx) => {
                 }
             );
         } catch (e) {
+            console.error("Edit failed, sending new message instead:", e);
             const sent = await ctx.reply(text, {
                 parse_mode: "HTML",
                 reply_markup: keyboard,
@@ -110,13 +111,14 @@ export const handleDcaOrder = async (ctx) => {
 
         return;
     } catch (err) {
+        console.error("DCA order flow failed:", err);
         return ctx.reply("❌ Something went wrong while starting DCA order setup.");
     }
 };
 
 
-export async function renderDcaMessage(ctx, userId) {
-    const step = await fetchUserStep(userId);
+export async function renderDcaMessage(ctx, userId, step) {
+    if (!step) step = await fetchUserStep(userId);
     if (!step || !step.tokenInfo) return;
 
     const { selectedWallets = [], wallets = [], tokenInfo, walletMap = {}, mode = "buy" } = step;
@@ -130,7 +132,7 @@ export async function renderDcaMessage(ctx, userId) {
     text += `3️⃣ Enter the total duration for the DCA strategy.\n`;
     text += `4️⃣ Define the interval between each buy/sell action.\n`;
     text += `5️⃣ Use one of the buttons to determine the total amount of tokens to buy/sell.\n\n`;
-    
+
     text += `<b>Selected Wallets:</b>\n`;
     selectedWallets.forEach(key => {
         const wallet = walletMap[key];
@@ -143,6 +145,7 @@ export async function renderDcaMessage(ctx, userId) {
         inline_keyboard: buildDcaKeyboard(
             selectedWallets,
             wallets,
+            step.showAllWallets ?? false,
             mode,
             {
                 duration: step.dcaDuration,
@@ -164,6 +167,7 @@ export async function renderDcaMessage(ctx, userId) {
             }
         );
     } catch (e) {
+        console.error("Edit failed, sending new DCA message instead:", e);
         const sent = await ctx.reply(text, {
             parse_mode: "HTML",
             disable_web_page_preview: true,

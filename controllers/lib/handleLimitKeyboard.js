@@ -306,7 +306,7 @@ export function buildDcaKeyboard(
         ],
         sell: [
             [{ text: "Sell 25%", callback_data: "sell_25:dca" }, { text: "Sell 50%", callback_data: "sell_50:dca" }],
-            [{ text: "Sell 100%", callback_data: "sell_100:dca" }]
+            [{ text: "Sell X%", callback_data: "sell_x:dca" }]
         ]
     };
 

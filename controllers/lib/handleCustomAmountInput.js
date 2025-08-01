@@ -2,8 +2,8 @@ import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/afte
 import { saveOrUpdatePosition, savePendingLimitOrder } from "./db.js";
 import { updateUserStep, saveUserStep } from "./db.js";
 import { decryptWallet } from "./generateWallet.js";
+import { formatNumber } from "./handleAction.js";
 import { toSmallestUnit } from "./suiAmount.js";
-
 
 export async function handleCustomAmountInput(ctx, step, userId) {
     const amount = parseFloat(ctx.message.text);
@@ -14,7 +14,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         return ctx.reply("❌ Please enter a valid amount greater than 0.");
     }
 
-    // 👇 Limit Order Handler
+    // Limit Order Handler
     if (step.orderMode === "limit") {
         const mode = step.state === 'awaiting_custom_buy_amount' ? 'buy' : 'sell';
         const tokenAddress = step.tokenAddress;
@@ -108,7 +108,6 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                 results.push(`❌ ${wallet.name || shortAddress(address)}: ${error.message || error}`);
             }
         }
-
         await saveUserStep(userId, {
             ...step,
             state: null,
@@ -119,8 +118,6 @@ export async function handleCustomAmountInput(ctx, step, userId) {
 
         return ctx.reply(results.join("\n"), { parse_mode: "HTML" });
     }
-
-
     // Position-based Confirm Flow
     else if (handlerType === 'position') {
         const index = step.currentIndex;
@@ -141,17 +138,18 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             `Amount: ${amount} SUI\n` +
             `Action: ${mode}\n\n` +
             `Are you sure?`;
-
         const confirmKey = `confirm_${mode}_${index}`;
-
         // Save amount + token in step
         await saveUserStep(userId, {
             ...updatedStep,
+            buySlippage: step.buySlippage ?? 1,
+            sellSlippage: step.sellSlippage ?? 1,
             [confirmKey]: {
                 amount,
                 tokenAddress
             }
         });
+
 
         const confirmationKeyboard = {
             inline_keyboard: [
@@ -164,7 +162,6 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                 [{ text: "❌ Cancel", callback_data: `view_pos_idx_${index}` }]
             ]
         };
-
         return ctx.reply(confirmationMessage, {
             parse_mode: "HTML",
             reply_markup: confirmationKeyboard

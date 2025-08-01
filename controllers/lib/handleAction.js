@@ -38,7 +38,7 @@ export function removeUndefined(obj) {
     );
 }
 
-function formatNumber(num) {
+export function formatNumber(num) {
     return Number(num).toLocaleString(undefined, { maximumFractionDigits: 6 });
 }
 
@@ -101,7 +101,7 @@ export async function handleAction(ctx, action, userId) {
 
         case action === "back_to_positions_wallets": {
             const userId = ctx.from.id;
-            return await handlePositionsWalletList(ctx, userId);
+            return await handlePositionsWalletList(ctx, userId); // this function renders that wallet selection message
         }
 
         case /^refresh_position_idx_(\d+)$/.test(action): {
@@ -127,7 +127,7 @@ export async function handleAction(ctx, action, userId) {
         case (action === 'show_qr'): {
             const userId = ctx.from.id.toString();
             const referralLink = `https://t.me/${ctx.me}?start=ref_${userId}`;
-            const qrImageBuffer = await generateQRCode(referralLink);
+            const qrImageBuffer = await generateQRCode(referralLink); // your custom function
             await ctx.replyWithPhoto({ source: qrImageBuffer }, { caption: "Here's your referral QR code." });
 
             await ctx.answerCbQuery();
@@ -183,13 +183,13 @@ export async function handleAction(ctx, action, userId) {
                     }
                 });
             } catch (error) {
+                console.error("Error creating new wallet:", error);
                 await ctx.answerCbQuery("❌ Failed to create wallet. Please try again.", { show_alert: true });
             }
             break;
         }
 
         case action === "x_new_wallets": {
-
             await saveUserStep(userId, {
                 state: "awaiting_wallet_generation_count",
                 flow: "generate_wallets"
@@ -559,6 +559,7 @@ export async function handleAction(ctx, action, userId) {
             delete step.limitTriggerValue;
             step.currentFlow = null;
 
+            // ✅ DO NOT delete tokenInfo or mode — required for re-render
             await saveUserStep(userId, step);
 
             // Re-render token info view with full keyboard and balances
@@ -580,8 +581,7 @@ export async function handleAction(ctx, action, userId) {
         }
 
         case action === "cancel": {
-            delete userSteps[userId];
-
+            delete userSteps[userId]; 
             await ctx.answerCbQuery("❌ Cancelled");
             await ctx.reply("Action cancelled.");
             break;

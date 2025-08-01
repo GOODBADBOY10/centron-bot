@@ -14,7 +14,7 @@ export async function importWalletFromInput(input) {
     const keypair = Ed25519Keypair.deriveKeypair(input, "m/44'/784'/0'/0'/0'");
     return {
       address: keypair.getPublicKey().toSuiAddress(),
-      privateKey: keypair.getSecretKey(),
+      privateKey: keypair.getSecretKey(), // Returns Bech32 format
       phrase: input,
       type: "Mnemonic"
     };
@@ -40,7 +40,7 @@ export async function importWalletFromInput(input) {
       // Method 2: Manual Bech32 decoding
       const decoded = bech32.decode(input);
       const bytes = bech32.fromWords(decoded.words);
-      const privateKeyBytes = new Uint8Array(bytes.slice(1, 33));
+      const privateKeyBytes = new Uint8Array(bytes.slice(1, 33)); // Skip scheme byte, take 32 bytes
 
       const keypair = Ed25519Keypair.fromSecretKey(privateKeyBytes);
       return {
@@ -97,7 +97,7 @@ export async function importWalletFromInput(input) {
       const keypair = Ed25519Keypair.fromSecretKey(privateKeyBytes);
       return {
         address: keypair.getPublicKey().toSuiAddress(),
-        privateKey: keypair.getSecretKey(),
+        privateKey: keypair.getSecretKey(), // Return in Bech32 format for consistency
         type: "Base64PrivateKey"
       };
     } catch (err) {

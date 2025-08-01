@@ -1,10 +1,8 @@
-import { getFallbackTokenDetails, getSuiUsdPrice } from "../../utils/getTokenDetails.js";
 import { buildActionRows, buildFooterRows, buildTokenInlineRows } from "../../utils/keyboard/keyboardBuilder.js";
-import { formatPositionSummary } from "../../utils/positions.js";
 import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/aftermath.js";
-import { saveOrUpdatePosition, saveUserStep, getUserPositions, fetchUser, getUser } from "./db.js";
+import { saveOrUpdatePosition, saveUserStep, fetchUser, getUser } from "./db.js";
+import { decryptWallet } from "./generateWallet.js";
 import { handleViewPosition } from "./handleViewPosition.js";
-import { getTokenPositions } from "./showWalletsForPositions.js";
 import { toSmallestUnit } from "./suiAmount.js";
 
 
@@ -69,7 +67,6 @@ export const handleToggleBuySell = async (ctx, action) => {
         const actionButtons = buildActionRows(newMode, index);
         const footer = buildFooterRows(index);
         const inline_keyboard = [...tokenRows, ...actionButtons, ...footer];
-
         // Only update keyboard for speed
         await ctx.editMessageReplyMarkup({ inline_keyboard });
 
@@ -77,6 +74,7 @@ export const handleToggleBuySell = async (ctx, action) => {
         saveUserStep(userId, removeUndefined(updatedStep)).catch(console.error);
 
     } catch (error) {
+        console.error("❌ Error in handleToggleBuySell:", error);
         return ctx.answerCbQuery("❌ Error switching mode");
     }
 };
@@ -108,7 +106,7 @@ export const handleSelectToken = async (ctx, action) => {
 
         if (!positions.length) return ctx.answerCbQuery("⚠ No cached tokens found. Reload with /positions");
 
-        // 🔄 Reorder positions by saved order
+        // Reorder positions by saved order
         const orderedTokenAddrs = step?.[`orderedTokens_${index}`] || [];
         const orderedPositions = orderedTokenAddrs
             .map(addr => positions.find(p => (p.tokenAddress || p.coinType) === addr))
@@ -122,11 +120,10 @@ export const handleSelectToken = async (ctx, action) => {
         const updatedStep = {
             ...step,
             [`selectedToken_${index}`]: tokenAddress,
+            buySlippage: step.buySlippage ?? 1,
+            sellSlippage: step.sellSlippage ?? 1,
         };
-
         saveUserStep(userId, removeUndefined(updatedStep)).catch(console.error);
-
-        // Rebuild keyboard only (no full message redraw)
         const tokenRows = buildTokenInlineRows(orderedPositions, tokenAddress, index);
         const actionButtons = buildActionRows(currentMode, index);
         const footer = buildFooterRows(index);
@@ -136,6 +133,7 @@ export const handleSelectToken = async (ctx, action) => {
         return ctx.answerCbQuery("✅ Token selected");
 
     } catch (error) {
+        console.error("❌ Error in handleSelectToken:", error);
         return ctx.answerCbQuery("❌ Failed to select token");
     }
 };
@@ -145,10 +143,9 @@ export const handleBuySellAmount = async (ctx, action) => {
     const userId = ctx.from.id.toString();
     const isBuy = action.startsWith("buy_amount_");
     const actionType = isBuy ? "buy" : "sell";
-
-
     const match = action.match(/(buy|sell)_amount_(\d+|custom)_idx_(\d+)/);
     if (!match) {
+        console.warn("⚠ Invalid action format:", action);
         return ctx.answerCbQuery("Invalid action");
     }
 
@@ -162,6 +159,7 @@ export const handleBuySellAmount = async (ctx, action) => {
     const selectedTokenAddress = step[selectedTokenKey];
 
     if (!selectedTokenAddress) {
+        console.warn("⚠ No selected token found in step data");
         return ctx.answerCbQuery("⚠ Please select a token first");
     }
 
@@ -170,6 +168,7 @@ export const handleBuySellAmount = async (ctx, action) => {
     const tokenKey = Object.entries(tokenMap).find(([_, val]) => val === selectedTokenAddress)?.[0];
 
     if (!tokenKey) {
+        console.warn("⚠ Token key not found for selected address");
         return ctx.answerCbQuery("⚠ Token key not found");
     }
 
@@ -177,9 +176,9 @@ export const handleBuySellAmount = async (ctx, action) => {
     const walletAddress = step.walletMap?.[walletKey];
 
     if (!walletAddress) {
+        console.warn("⚠ Wallet address not found in step data");
         return ctx.answerCbQuery("⚠ Wallet not found");
     }
-
     const positions = (step[`cachedPositions_${index}`] || []).map(p => ({
         ...p,
         tokenAddress: p.tokenAddress || p.coinType,
@@ -193,6 +192,7 @@ export const handleBuySellAmount = async (ctx, action) => {
 
     // For sell, token must exist
     if (!selectedToken && !isBuy) {
+        console.warn("⚠ Token not found in wallet positions during sell");
         return ctx.answerCbQuery("⚠ Selected token not found in wallet");
     }
 
@@ -247,7 +247,6 @@ export const handleBuySellAmount = async (ctx, action) => {
 
 
 export const handleConfirmBuySell = async (ctx, action) => {
-
     const userId = ctx.from.id;
     const isBuy = action.startsWith("confirm_buy_");
     const actionType = isBuy ? "buy" : "sell";
@@ -260,29 +259,36 @@ export const handleConfirmBuySell = async (ctx, action) => {
     if (!confirmData) {
         return ctx.answerCbQuery("❌ Confirmation data missing or expired.");
     }
-
     const { tokenAddress, amount } = confirmData;
-
     await ctx.answerCbQuery(`🔄 Executing ${actionType} order...`);
-
     try {
         const wallets = user.wallets || [];
-
+        const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET
         const walletKey = `wallet_${index}`;
         const walletAddress = step.walletMap?.[walletKey];
         const currentWallet = wallets.find(
             w => (w.address || w.walletAddress)?.toLowerCase() === walletAddress?.toLowerCase()
         );
 
-        const userPhrase = currentWallet?.seedPhrase || currentWallet.privateKey || null;
-        if (!userPhrase || !walletAddress) throw new Error("Wallet or recovery phrase is not set.");
+        let userPhrase;
+        try {
+            const encrypted = currentWallet?.seedPhrase || currentWallet?.privateKey;
+            const decrypted = decryptWallet(encrypted, ENCRYPTION_SECRET);
+            if (typeof decrypted === "string") {
+                userPhrase = decrypted;
+            } else if (decrypted && typeof decrypted === "object") {
+                userPhrase = decrypted.privateKey || decrypted.seedPhrase;
+            }
+            if (!userPhrase) throw new Error("Missing decrypted phrase or key.");
+        } catch (err) {
+            console.error(err);
+        }
 
+        if (!userPhrase || !walletAddress) throw new Error("Wallet or recovery phrase is not set.");
         const buySlippage = step.buySlippage;
         const sellSlippage = step.sellSlippage;
-
         const suiAmount = isBuy ? toSmallestUnit(parseFloat(amount)) : null;
         const suiPercentage = !isBuy ? parseInt(amount, 10) : null;
-
         // Show loading state
         try {
             await ctx.editMessageText(`⏳ ${isBuy ? "Buying" : "Selling"} token...`, {
@@ -307,7 +313,6 @@ export const handleConfirmBuySell = async (ctx, action) => {
                 amountBought: tokenAmountReceived,
                 amountInSUI: spentSUI
             });
-
             const message = `✅ BUY ORDER EXECUTED!\n\n` +
                 `💰 Amount: ${amount} SUI\n` +
                 `🪙 Token: ${tokenSymbol}\n` +
@@ -345,10 +350,11 @@ export const handleConfirmBuySell = async (ctx, action) => {
         // Optionally auto-refresh after a delay
         setTimeout(() => {
             ctx.callbackQuery.data = `view_pos_idx_${index}`;
-            handleViewPosition(ctx);
+            handleViewPosition(ctx, ctx.callbackQuery.data);
         }, 3000);
 
     } catch (error) {
+        console.error(`${actionType} order failed:`, error);
         await ctx.editMessageText(`❌ ${actionType.toUpperCase()} ORDER FAILED\n\n${error.message || error}\n\nPlease try again.`, {
             reply_markup: {
                 inline_keyboard: [

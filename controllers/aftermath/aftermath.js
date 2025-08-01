@@ -1,7 +1,8 @@
-import { Aftermath } from "aftermath-ts-sdk";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { Aftermath } from "aftermath-ts-sdk";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { normalizeSlippage } from "./slippage.js";
+import { getKeypairFromInput } from "../lib/getKeypairFromInput.js";
 
 const FEE_RECEIVER_ADDRESS = process.env.FEE_WALLET_ADDRESS;
 
@@ -35,7 +36,7 @@ export const buyTokenWithAftermath = async ({ tokenAddress, phrase, suiAmount, s
     const afsdk = new Aftermath("MAINNET");
     await afsdk.init();
     const router = afsdk.Router();
-    const keyPair = Ed25519Keypair.deriveKeypair(phrase);
+    const keyPair = await getKeypairFromInput(phrase);
     const walletAddress = keyPair.getPublicKey().toSuiAddress();
 
     const balances = await client.getAllBalances({ owner: walletAddress });
@@ -121,7 +122,7 @@ export const sellTokenWithAftermath = async ({ tokenAddress, phrase, suiPercenta
     const afsdk = new Aftermath("MAINNET");
     await afsdk.init();
     const router = afsdk.Router();
-    const keyPair = Ed25519Keypair.deriveKeypair(phrase);
+    const keyPair = await getKeypairFromInput(phrase);
     const walletAddress = keyPair.getPublicKey().toSuiAddress();
 
     const balances = await client.getAllBalances({

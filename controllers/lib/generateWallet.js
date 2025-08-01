@@ -2,9 +2,11 @@ import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import * as crypto from 'crypto';
 import * as bip39 from 'bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
+import dotenv from "dotenv";
+dotenv.config()
 
-const ENCRYPTION_ALGORITHM = process.env.ENCRYPTION_ALGORITHM;
-const IV_LENGTH = process.env.IV_LENGTH;
+const ENCRYPTION_ALGORITHM = process.env.ENCRYPTION_ALGORITHM || "aes-256-cbc";
+const IV_LENGTH = Number(process.env.IV_LENGTH || 16);
 
 export async function generate12WordMnemonic() {
   // 128 bits entropy for 12-word mnemonic
@@ -28,7 +30,7 @@ export async function generateWallet() {
 export function encryptWallet(wallet, password) {
   const json = JSON.stringify(wallet);
   const key = crypto.createHash("sha256").update(password).digest();
-  const iv = crypto.randomBytes(process.env.IV_LENGTH);
+  const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
   const encrypted = Buffer.concat([cipher.update(json, "utf8"), cipher.final()]);
   return iv.toString("hex") + ":" + encrypted.toString("hex");
