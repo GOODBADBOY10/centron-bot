@@ -2,9 +2,10 @@ import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Aftermath } from "aftermath-ts-sdk";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { normalizeSlippage } from "./slippage.js";
+import { Transaction } from "@mysten/sui/transactions";
 import { getKeypairFromInput } from "../lib/getKeypairFromInput.js";
 
-const FEE_RECEIVER_ADDRESS = process.env.FEE_WALLET_ADDRESS;
+const CENTRON_BOT_VAULT_WALLET = process.env.CENTRON_BOT_VAULT_WALLET
 
 async function fetchWithRetry(client, tokenAddress, retries = 3) {
   for (let i = 0; i < retries; i++) {
@@ -20,6 +21,8 @@ async function fetchWithRetry(client, tokenAddress, retries = 3) {
 }
 
 export const buyTokenWithAftermath = async ({ tokenAddress, phrase, suiAmount, slippage }) => {
+  let feeTransactionDigest = null;
+
   try {
     if (!tokenAddress || !phrase || !suiAmount || !slippage) {
       throw new Error("Missing required parameters");
@@ -43,19 +46,25 @@ export const buyTokenWithAftermath = async ({ tokenAddress, phrase, suiAmount, s
     const suiBalanceObj = balances.find(balance => balance.coinType === "0x2::sui::SUI");
     const suiBalance = suiBalanceObj ? BigInt(suiBalanceObj.totalBalance) : 0n;
 
-    const buffer = 5_000_000n;
-    if (suiBalance < BigInt(suiAmount) + buffer) {
-      throw new Error("Insufficient SUI balance (including buffer for gas fees)");
+    const buffer = 10_000_000n; // 0.01 SUI buffer for gas (increased)
+    const feeAmount = BigInt(suiAmount) / 100n; // 1%
+    const tradeAmount = BigInt(suiAmount) - feeAmount;
+
+    const totalRequired = feeAmount + tradeAmount + buffer;
+    if (suiBalance < totalRequired) {
+      throw new Error("Insufficient SUI balance (including gas + fee)");
     }
 
+    // First check if the route exists before taking fees
     let route;
     try {
       route = await router.getCompleteTradeRouteGivenAmountIn({
         coinInType: '0x2::sui::SUI',
         coinOutType: tokenAddress,
-        coinInAmount: BigInt(suiAmount),
+        coinInAmount: tradeAmount,
       });
     } catch (e) {
+      console.error("⚠️ Route error:", e.message || e);
       throw new Error("❌ Failed to find swap route. Possibly unsupported token or too low amount.");
     }
 
@@ -63,6 +72,23 @@ export const buyTokenWithAftermath = async ({ tokenAddress, phrase, suiAmount, s
       throw new Error("No viable trade route found.");
     }
 
+    // STEP 1: Send 1% fee to your wallet
+    const feeTx = new Transaction()
+    const [feeCoin] = feeTx.splitCoins(feeTx.gas, [feeAmount]);
+    feeTx.transferObjects([feeCoin], CENTRON_BOT_VAULT_WALLET);
+
+    const feeResult = await client.signAndExecuteTransaction({
+      signer: keyPair,
+      transaction: feeTx,
+      options: {
+        showEffects: true,
+        showObjectChanges: true,
+      }
+    });
+
+    feeTransactionDigest = feeResult.digest;
+
+    // STEP 2: Execute token trade
     const txBlock = await router.getTransactionForCompleteTradeRoute({
       walletAddress,
       completeRoute: route,
@@ -72,7 +98,14 @@ export const buyTokenWithAftermath = async ({ tokenAddress, phrase, suiAmount, s
     const result = await client.signAndExecuteTransaction({
       signer: keyPair,
       transaction: txBlock,
+      options: {
+        showEffects: true,
+        showObjectChanges: true,
+      }
     });
+
+    // Wait for balances to update
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     const allBalances = await client.getAllBalances({ owner: walletAddress });
     const tokenBalanceObj = allBalances.find(b => b.coinType === tokenAddress);
@@ -97,15 +130,26 @@ export const buyTokenWithAftermath = async ({ tokenAddress, phrase, suiAmount, s
     return {
       success: true,
       transactionDigest: result.digest,
+      feeTransactionDigest,
       walletAddress,
-      spentSUI: Number(suiAmount) / 1e9,
+      spentSUI: Number(tradeAmount) / 1e9,
       tokenAmountReceived: Number(tokenAmountReceived),
       tokenAmountReadable,
       tokenSymbol: symbol,
       tokenAddress,
       decimals,
+      feePaid: Number(feeAmount) / 1e9,
+      feeRecipient: CENTRON_BOT_VAULT_WALLET,
     };
   } catch (error) {
+    console.error('Buy token error:', error);
+
+    // If fee was taken but trade failed, include that info
+    if (feeTransactionDigest) {
+      error.feeTransactionDigest = feeTransactionDigest;
+      error.message = `Trade failed but fee was already taken. Fee TX: ${feeTransactionDigest}. Error: ${error.message}`;
+    }
+
     throw error;
   }
 };
@@ -115,6 +159,19 @@ export const sellTokenWithAftermath = async ({ tokenAddress, phrase, suiPercenta
     if (!tokenAddress || !phrase || !suiPercentage || !slippage) {
       throw new Error("Missing required parameters");
     }
+
+    if (slippage < 0 || slippage > 100) {
+      throw new Error("Slippage must be between 0 and 100");
+    }
+
+    if (suiPercentage <= 0 || suiPercentage > 100) {
+      throw new Error("Percentage must be between 1 and 100");
+    }
+
+    if (!CENTRON_BOT_VAULT_WALLET) {
+      throw new Error("Fee receiver address not configured");
+    }
+
     const client = new SuiClient({
       url: getFullnodeUrl("mainnet")
     });
@@ -125,11 +182,7 @@ export const sellTokenWithAftermath = async ({ tokenAddress, phrase, suiPercenta
     const keyPair = await getKeypairFromInput(phrase);
     const walletAddress = keyPair.getPublicKey().toSuiAddress();
 
-    const balances = await client.getAllBalances({
-      owner: walletAddress
-    });
-
-    // Find token balance (not SUI!)
+    const balances = await client.getAllBalances({ owner: walletAddress });
     const tokenBalanceObj = balances.find(b => b.coinType === tokenAddress);
     const totalBalance = tokenBalanceObj ? BigInt(tokenBalanceObj.totalBalance) : 0n;
 
@@ -138,12 +191,11 @@ export const sellTokenWithAftermath = async ({ tokenAddress, phrase, suiPercenta
     }
 
     const tokenAmount = (totalBalance * BigInt(suiPercentage)) / 100n;
-
     if (tokenAmount === 0n) {
       throw new Error("Token amount to sell is too small.");
     }
 
-    // Execute swap
+    // Get expected SUI output to calculate fee beforehand
     let route;
     try {
       route = await router.getCompleteTradeRouteGivenAmountIn({
@@ -152,9 +204,20 @@ export const sellTokenWithAftermath = async ({ tokenAddress, phrase, suiPercenta
         coinInAmount: tokenAmount,
       });
     } catch (e) {
-      throw new Error("Failed to find swap route. Possibly due to low liquidity or unsupported token pair.");
+      console.error("Route error:", e.message || e);
+      throw new Error("Failed to find swap route for this token.");
     }
 
+    if (!route || !route.routes?.length) {
+      throw new Error("No viable trade route found for this token.");
+    }
+
+    // Calculate expected output and fee
+    const expectedSuiOutput = BigInt(route.coinOut.amount);
+    const feeAmount = expectedSuiOutput / 100n; // 1% of expected output
+    const expectedUserSui = expectedSuiOutput - feeAmount;
+
+    // Execute the swap
     const txBlock = await router.getTransactionForCompleteTradeRoute({
       walletAddress,
       completeRoute: route,
@@ -164,23 +227,57 @@ export const sellTokenWithAftermath = async ({ tokenAddress, phrase, suiPercenta
     const result = await client.signAndExecuteTransaction({
       signer: keyPair,
       transaction: txBlock,
+      options: {
+        showEffects: true,
+        showObjectChanges: true,
+      }
     });
 
-    const { symbol, decimals } = await getTokenMetadataSafe(client, tokenAddress);
+    // Wait for balances to update
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const tokenAmountReadable = Number(tokenAmount) / (10 ** decimals);
+    // Get actual SUI received
+    const updatedBalances = await client.getAllBalances({ owner: walletAddress });
+    const suiBalanceObj = updatedBalances.find(b => b.coinType === '0x2::sui::SUI');
+    const actualSuiBalance = suiBalanceObj ? BigInt(suiBalanceObj.totalBalance) : 0n;
+
+    // Calculate actual fee based on what we received (with minimum check)
+    const actualFeeAmount = actualSuiBalance >= feeAmount ? feeAmount : actualSuiBalance / 100n;
+
+    if (actualFeeAmount > 0n) {
+      const feeTx = new Transaction();
+      const [feeCoin] = feeTx.splitCoins(feeTx.gas, [actualFeeAmount]);
+      feeTx.transferObjects([feeCoin], CENTRON_BOT_VAULT_WALLET);
+
+      await client.signAndExecuteTransaction({
+        signer: keyPair,
+        transaction: feeTx,
+        options: {
+          showEffects: true,
+          showObjectChanges: true,
+        }
+      });
+    }
+    const tokenSymbol = tokenAddress.split("::")[2];
+
+    const finalUserSui = actualSuiBalance - actualFeeAmount;
 
     return {
       success: true,
-      txDigest: result.digest,
+      transactionDigest: result.digest,
       walletAddress,
+      tokenAmountSold: Number(tokenAmount),
       tokenAddress,
-      tokenAmountReadable,
-      tokenAmountReceived: Number(tokenAmount),
-      spentSUI: Number(route.estimatedAmountOut) / 1e9,
-      tokenSymbol: symbol,
+      expectedSuiOutput: Number(expectedSuiOutput) / 1e9,
+      actualSuiReceived: Number(actualSuiBalance) / 1e9,
+      suiAfterFee: Number(finalUserSui) / 1e9,
+      feePaid: Number(actualFeeAmount) / 1e9,
+      feeRecipient: CENTRON_BOT_VAULT_WALLET,
+      percentageSold: suiPercentage,
+      tokenSymbol
     };
   } catch (error) {
+    console.error('Sell token error:', error);
     throw error;
   }
 };

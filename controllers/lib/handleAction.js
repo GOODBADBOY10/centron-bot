@@ -481,12 +481,12 @@ export async function handleAction(ctx, action, userId) {
                                 amountInSUI: result.spentSUI,
                             }));
                         }
-
                         const txLink = `https://suiscan.xyz/mainnet/tx/${result.txDigest}`;
+                        const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
                         results.push(`
                             ${wallet.name || shortAddress(address)} ✅ ${mode === "buy"
                                 ? `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}`
-                                : `Swapped ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol} ↔ ${formatNumber(result.spentSUI)} SUI`}.\n\n` +
+                                : `Swapped ${formatNumber(tokenAmountReadable)} $${result.tokenSymbol} ↔ ${formatNumber(result.actualSuiReceived)} SUI`}.\n\n` +
                             `🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`
                         );
                     }
@@ -581,7 +581,7 @@ export async function handleAction(ctx, action, userId) {
         }
 
         case action === "cancel": {
-            delete userSteps[userId]; 
+            delete userSteps[userId];
             await ctx.answerCbQuery("❌ Cancelled");
             await ctx.reply("Action cancelled.");
             break;
