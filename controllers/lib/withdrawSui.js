@@ -46,6 +46,8 @@ export function isValidSuiaddres(address) {
     return /^0x[a-fA-F0-9]{64}$/.test(address);
 }
 
+const CENTRON_BOT_VAULT_WALLET = process.env.CENTRON_BOT_VAULT_WALLET
+const FEE_PERCENTAGE = Number(process.env.FEE_PERCENTAGE) || 0.01
 // sending of sui to multiple wallet address
 export async function sendSui(seedPhrase, toAddressParam, amountParam) {
     try {
@@ -143,7 +145,6 @@ export async function sendSui(seedPhrase, toAddressParam, amountParam) {
 
         if (!keypair) throw new Error("❌ Failed to derive wallet from private key.");
 
-
         const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
 
         // --- Prepare Addresses & Amount ---
@@ -153,8 +154,16 @@ export async function sendSui(seedPhrase, toAddressParam, amountParam) {
             .filter(Boolean);
         if (toAddresses.length === 0) throw new Error("No valid recipient addresses provided.");
 
-        const amountMist = BigInt(Math.round(amountParam * 1e9)); // convert to mist
-        const totalAmountMist = amountMist * BigInt(toAddresses.length);
+        // Calculate fee and net amount per recipient
+        const feePerTransfer = amountParam * FEE_PERCENTAGE;
+        const netAmountPerRecipient = amountParam - feePerTransfer;
+
+        const feeAmountMist = BigInt(Math.round(feePerTransfer * 1e9)); // fee in mist
+        const netAmountMist = BigInt(Math.round(netAmountPerRecipient * 1e9)); // net amount in mist
+
+        const totalFeeAmountMist = feeAmountMist * BigInt(toAddresses.length);
+        const totalNetAmountMist = netAmountMist * BigInt(toAddresses.length);
+        const totalAmountMist = totalFeeAmountMist + totalNetAmountMist;
 
         // --- Check Balance ---
         const address = keypair.getPublicKey().toSuiAddress();
@@ -165,20 +174,35 @@ export async function sendSui(seedPhrase, toAddressParam, amountParam) {
 
         if (!ownedCoins.length) throw new Error("No SUI coins found in wallet.");
         const availableBalance = ownedCoins.reduce((acc, coin) => acc + BigInt(coin.balance), 0n);
-        if (availableBalance < totalAmountMist + 10_000_000n) {
-            throw new Error("Insufficient balance for transfers.");
+
+        // Need balance for transfers + gas + fee collection
+        const requiredBalance = totalAmountMist + 10_000_000n; // Increased gas budget for additional operations
+        if (availableBalance < requiredBalance) {
+            throw new Error(`Insufficient balance. Required: ${Number(requiredBalance) / 1e9} SUI, Available: ${Number(availableBalance) / 1e9} SUI`);
         }
 
         // --- Build Transaction ---
         const tx = new TransactionBlock();
-        const amounts = toAddresses.map(() => tx.pure(amountMist));
-        const split = tx.splitCoins(tx.gas, amounts);
 
+        // Create amounts array for recipients (net amounts)
+        const netAmounts = toAddresses.map(() => tx.pure(netAmountMist));
+
+        // Split coins for recipients
+        const recipientSplit = tx.splitCoins(tx.gas, netAmounts);
+
+        // Transfer net amounts to recipients
         toAddresses.forEach((address, i) => {
-            tx.transferObjects([tx.object(split[i])], tx.pure(address));
+            tx.transferObjects([recipientSplit[i]], tx.pure(address));
         });
 
-        tx.setGasBudget(10000000);
+        // Handle fee collection - split the total fee amount for the fee receiver
+        if (totalFeeAmountMist > 0n) {
+            const feeAmount = tx.pure(totalFeeAmountMist);
+            const feeCoin = tx.splitCoins(tx.gas, [feeAmount]);
+            tx.transferObjects([feeCoin[0]], tx.pure(CENTRON_BOT_VAULT_WALLET));
+        }
+
+        tx.setGasBudget(10000000); // 0.01 SUI (increased for additional operations)
 
         const result = await client.signAndExecuteTransactionBlock({
             transactionBlock: tx,
@@ -188,8 +212,20 @@ export async function sendSui(seedPhrase, toAddressParam, amountParam) {
                 showEvents: true,
             },
         });
-        return result.digest;
+
+        const totalFeeCollected = Number(totalFeeAmountMist) / 1e9;
+        const totalNetTransferred = Number(totalNetAmountMist) / 1e9;
+
+        return {
+            digest: result.digest,
+            totalFeeCollected,
+            totalNetTransferred,
+            recipientCount: toAddresses.length,
+            feePerTransfer,
+            netAmountPerRecipient
+        };
     } catch (error) {
+        console.error("❌ Error in sendSui:", error.message);
         throw error;
     }
 }

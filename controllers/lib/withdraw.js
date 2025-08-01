@@ -1,5 +1,6 @@
 import { fetchUser, saveUserStep, fetchUserStep } from "./db.js";
 import { createWithdrawWalletKeyboard, sendSui } from "./withdrawSui.js";
+import { decryptWallet } from "./generateWallet.js";
 
 export const handleWithdrawSui = async (ctx, action) => {
     const index = Number(action.split("_").pop());

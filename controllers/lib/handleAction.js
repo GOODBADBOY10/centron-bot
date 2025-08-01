@@ -429,10 +429,13 @@ export async function handleAction(ctx, action, userId) {
                     );
                 }
             }
-            const suiAmount = parseFloat(amountStr) ? toSmallestUnit(parseFloat(amountStr)) : null;
+
+            const parsedAmount = parseFloat(amountStr);
+            const suiAmount = !isNaN(parsedAmount) && parsedAmount > 0 ? toSmallestUnit(parsedAmount) : null;
             const suiPercentage = parseInt(amountStr, 10);
             const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET
             const results = [];
+            await ctx.reply(`⏳ Executing ${mode} order for ${selectedWallets.length} wallet(s)...`);
             for (const wallet of selectedWallets) {
                 let phrase;
                 try {
@@ -485,8 +488,8 @@ export async function handleAction(ctx, action, userId) {
                         const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
                         results.push(`
                             ${wallet.name || shortAddress(address)} ✅ ${mode === "buy"
-                                ? `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}`
-                                : `Swapped ${formatNumber(tokenAmountReadable)} $${result.tokenSymbol} ↔ ${formatNumber(result.actualSuiReceived)} SUI`}.\n\n` +
+                                ? `Swapped ${formatNumber(result.spentSUI ?? 0)} SUI ↔ ${formatNumber(result.tokenAmountReadable ?? (result.tokenAmountReceived / 1e9))} $${result.tokenSymbol ?? "??"}`
+                                : `Swapped ${formatNumber(tokenAmountReadable ?? 0)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI`}.\n\n` +
                             `🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`
                         );
                     }
