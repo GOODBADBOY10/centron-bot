@@ -197,7 +197,8 @@ export async function getTokenMetadata(coinType) {
         };
     }
 }
-
+const CENTRON_BOT_VAULT_WALLET = process.env.CENTRON_BOT_VAULT_WALLET
+const FEE_PERCENTAGE = Number(process.env.FEE_PERCENTAGE) || 0.01
 
 export async function withdrawTokens(seedPhrase, toAddressParam, amountParam, tokenType = "SUI", tokenDecimals = 9) {
     try {
@@ -215,7 +216,7 @@ export async function withdrawTokens(seedPhrase, toAddressParam, amountParam, to
             "WETH": "0xaf8cd5edc19c4512f4259f0bee101a40d41ebed738ade5874359610ef8eeced5::coin::COIN",
             "CETUS": "0x06864a6f921804860930db6ddbe2e16acdf8504495ea7481637a1c8b9a8fe54b::cetus::CETUS",
             "SCA": "0x7016aae72cfc67f2fadf55769c0a7dd54291a583b63051a5ed71081cce836ac6::sca::SCA",
-            "CUSTOM": tokenType
+            "CUSTOM": tokenType // Allow custom token types
         };
 
         let coinType;
@@ -350,19 +351,27 @@ export async function withdrawTokens(seedPhrase, toAddressParam, amountParam, to
             throw new Error("📦 Too many recipients. Maximum 100 addresses allowed per transaction.");
         }
 
-        // Calculate amounts
+        // Calculate fee and net amounts
+        const feePerTransfer = amountParam * FEE_PERCENTAGE;
+        const netAmountPerRecipient = amountParam - feePerTransfer;
+
         const decimalsMultiplier = BigInt(10 ** tokenDecimals);
-        const amountInSmallestUnit = BigInt(Math.round(amountParam * Number(decimalsMultiplier)));
-        const totalAmountNeeded = amountInSmallestUnit * BigInt(toAddresses.length);
+        const feeAmountInSmallestUnit = BigInt(Math.round(feePerTransfer * Number(decimalsMultiplier)));
+        const netAmountInSmallestUnit = BigInt(Math.round(netAmountPerRecipient * Number(decimalsMultiplier)));
 
-        if (amountInSmallestUnit <= 0n) {
-            throw new Error(`💰 Amount must be greater than 0 ${tokenType}.`);
+        const totalFeeAmount = feeAmountInSmallestUnit * BigInt(toAddresses.length);
+        const totalNetAmount = netAmountInSmallestUnit * BigInt(toAddresses.length);
+        const totalAmountNeeded = totalFeeAmount + totalNetAmount;
+
+        if (netAmountInSmallestUnit <= 0n) {
+            throw new Error(`💰 Net amount after fee must be greater than 0 ${tokenType}.`);
         }
 
-        const minAmount = decimalsMultiplier / 1000n;
-        if (amountInSmallestUnit < minAmount) {
-            throw new Error(`💰 Amount too small. Minimum transfer is ${Number(minAmount) / Number(decimalsMultiplier)} ${tokenType}.`);
+        const minAmount = decimalsMultiplier / 1000n; // 0.001 of token
+        if (netAmountInSmallestUnit < minAmount) {
+            throw new Error(`💰 Net amount after fee too small. Minimum transfer is ${Number(minAmount) / Number(decimalsMultiplier)} ${tokenType}.`);
         }
+
         // Get token coins
         let ownedCoins;
         try {
@@ -390,7 +399,7 @@ export async function withdrawTokens(seedPhrase, toAddressParam, amountParam, to
             const required = Number(totalAmountNeeded) / Number(decimalsMultiplier);
             const available = Number(availableBalance) / Number(decimalsMultiplier);
             const shortage = required - available;
-            throw new Error(`❌ Insufficient ${tokenType}. Needed: ${required.toFixed(6)} ${tokenType}, Available: ${available.toFixed(6)} ${tokenType}. Short by: ${shortage.toFixed(6)} ${tokenType}.`);
+            throw new Error(`❌ Insufficient ${tokenType}. Needed: ${required.toFixed(6)} ${tokenType} (including fees), Available: ${available.toFixed(6)} ${tokenType}. Short by: ${shortage.toFixed(6)} ${tokenType}.`);
         }
 
         // For non-SUI tokens, check SUI balance for gas
@@ -405,7 +414,7 @@ export async function withdrawTokens(seedPhrase, toAddressParam, amountParam, to
                 const gasBuffer = 10_000_000n; // 0.01 SUI for gas
 
                 if (suiBalance < gasBuffer) {
-                    throw new Error(`⛽ Insufficient SUI for gas fees. Need at least 0.01 SUI, have ${Number(suiBalance) / 1e9} SUI.`);
+                    throw new Error(`⛽ Insufficient SUI for gas fees. Need at least 0.02 SUI, have ${Number(suiBalance) / 1e9} SUI.`);
                 }
             } catch (suiError) {
                 throw new Error(`⛽ Failed to check SUI balance for gas: ${suiError.message}`);
@@ -426,6 +435,7 @@ export async function withdrawTokens(seedPhrase, toAddressParam, amountParam, to
 
         for (const coin of ownedCoins) {
             if (!coin.coinObjectId || !coin.digest || !coin.version) {
+                console.warn(`⚠️ Skipping invalid ${tokenType} coin object: ${JSON.stringify(coin)}`);
                 continue;
             }
 
@@ -462,26 +472,37 @@ export async function withdrawTokens(seedPhrase, toAddressParam, amountParam, to
             throw new Error(`🔗 Failed to merge ${tokenType} coins: ${mergeError.message}`);
         }
 
-        // Split the coin for each recipient
-        let splitCoins;
+        // Split the coin for recipients (net amounts)
+        let recipientCoins;
         try {
-            splitCoins = tx.splitCoins(coinToSplit, toAddresses.map(() => tx.pure(amountInSmallestUnit)));
+            recipientCoins = tx.splitCoins(coinToSplit, toAddresses.map(() => tx.pure(netAmountInSmallestUnit)));
         } catch (splitError) {
-            throw new Error(`✂️ Failed to split ${tokenType} coins: ${splitError.message}`);
+            throw new Error(`✂️ Failed to split ${tokenType} coins for recipients: ${splitError.message}`);
         }
 
-        // Transfer to each recipient
+        // Transfer net amounts to each recipient
         try {
             toAddresses.forEach((address, i) => {
-                tx.transferObjects([splitCoins[i]], tx.pure(address));
+                tx.transferObjects([recipientCoins[i]], tx.pure(address));
             });
         } catch (transferError) {
-            throw new Error(`📤 Failed to setup ${tokenType} transfers: ${transferError.message}`);
+            throw new Error(`📤 Failed to setup ${tokenType} transfers to recipients: ${transferError.message}`);
+        }
+
+        // Handle fee collection - split and transfer total fee to fee receiver
+        if (totalFeeAmount > 0n) {
+            try {
+                const feeAmount = tx.pure(totalFeeAmount);
+                const feeCoin = tx.splitCoins(coinToSplit, [feeAmount]);
+                tx.transferObjects([feeCoin[0]], tx.pure(CENTRON_BOT_VAULT_WALLET));
+            } catch (feeError) {
+                throw new Error(`💰 Failed to setup fee collection: ${feeError.message}`);
+            }
         }
 
         // Set gas budget
         try {
-            const gasBudget = tokenType === "SUI" ? 10_000_000 : 20_000_000; // Higher gas for token transfers
+            const gasBudget = tokenType === "SUI" ? 10_000_000 : 20_000_000; // Higher gas for token transfers with fees
             tx.setGasBudget(gasBudget);
         } catch (gasError) {
             throw new Error(`⛽ Failed to set gas budget: ${gasError.message}`);
@@ -521,6 +542,9 @@ export async function withdrawTokens(seedPhrase, toAddressParam, amountParam, to
         const totalGasCost = gasUsed ?
             BigInt(gasUsed.computationCost || 0) + BigInt(gasUsed.storageCost || 0) - BigInt(gasUsed.storageRebate || 0) : 0n;
 
+        const totalFeeCollected = Number(totalFeeAmount) / Number(decimalsMultiplier);
+        const totalNetTransferred = Number(totalNetAmount) / Number(decimalsMultiplier);
+
         return {
             digest: result.digest,
             success: true,
@@ -528,6 +552,10 @@ export async function withdrawTokens(seedPhrase, toAddressParam, amountParam, to
             coinType: coinType,
             recipients: toAddresses,
             amount: amountParam,
+            netAmountPerRecipient: netAmountPerRecipient,
+            feePerTransfer: feePerTransfer,
+            totalFeeCollected: totalFeeCollected,
+            totalNetTransferred: totalNetTransferred,
             totalAmount: Number(totalAmountNeeded) / Number(decimalsMultiplier),
             gasUsed: Number(totalGasCost) / 1e9, // Gas is always in SUI
             totalCost: tokenType === "SUI" ? Number(totalAmountNeeded + totalGasCost) / Number(decimalsMultiplier) : Number(totalAmountNeeded) / Number(decimalsMultiplier),
@@ -549,6 +577,9 @@ export async function withdrawTokens(seedPhrase, toAddressParam, amountParam, to
                 tokenDecimals: tokenDecimals
             }
         };
+
+        console.error('🚨 Detailed error:', errorDetails);
+
         const friendlyMessage = `❌ Error while sending ${tokenType || 'tokens'}: ${error.message || error.toString()}`;
         throw new Error(friendlyMessage);
     }

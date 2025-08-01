@@ -15,7 +15,7 @@ export const handleWalletInfo = async (ctx, action) => {
 
     let balance;
     try {
-        balance = await getBalance(wallet.walletAddress);
+        balance = (await getBalance(wallet.walletAddress)) || "0";
     } catch (error) {
         return ctx.answerCbQuery("Failed to fetch wallet balance.", { show_alert: true });
     }
@@ -23,7 +23,7 @@ export const handleWalletInfo = async (ctx, action) => {
     const balanceDisplay = typeof balance === "object" ? balance.sui : balance;
 
     await ctx.editMessageText(
-        `💰 Balance: ${balanceDisplay} SUI\n\n` +
+         `💰 Balance: ${balance.sui || 0} SUI\n\n` +
         `🏷️ Name: ${wallet.name || "Unnamed"}\n\n` +
         `💳 Wallet:\n\`${wallet.walletAddress}\` (tap to copy)`,
         {
