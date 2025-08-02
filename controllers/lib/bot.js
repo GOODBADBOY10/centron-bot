@@ -21,10 +21,8 @@ import { showWalletsForPositions } from "./showWalletsForPositions.js";
 import { saveUserStep, clearUserStep } from "./db.js";
 import { handleExecuteTokenWithdraw, handleWithdrawTokenAddress } from "../tokens/withdrawToken.js";
 
-
 export const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
-
 
 bot.start(handleStart);
 
