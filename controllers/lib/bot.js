@@ -248,6 +248,4 @@ bot.on("callback_query", async (ctx) => {
   }
 });
 
-await bot.launch();
-
 export default { bot, webhookCallback: bot.webhookCallback('/'), };
