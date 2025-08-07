@@ -124,7 +124,7 @@ export async function getFallbackTokenDetails(tokenAddress, walletAddress, optio
       source = "Insidex";
     }
   } catch (err) {
-    console.error("Failed to fetch insidex result", err.message);
+    // console.error("Failed to fetch insidex result", err.message);
   }
 
   if (!tokenInfo) {
