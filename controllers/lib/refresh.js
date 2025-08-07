@@ -64,8 +64,8 @@ export async function handleBackToMenu(ctx) {
 
     let message = '';
     message += 'Welcome to *Centron Bot* 👋\n\n';
-    message += 'Trade seamlessly on Sui with low fees + high speeds.\n\n';
-    message += '💳 Wallets:\n';
+    message += "Trade seamlessly on Sui with low fees + high speeds. Full support for all DEXes, including memecoin launchpads.\n\n";
+    message += "Sui Wallet Address:\n";
 
     balances.forEach((entry, i) => {
         if (!entry) return;

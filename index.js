@@ -1,6 +1,5 @@
 import express from 'express';
 import dotenv from 'dotenv';
-// import bot from './controllers/lib/bot.js';
 import botModule from './controllers/lib/bot.js';
 import { getAllPendingLimitOrders } from './controllers/lib/db.js';
 
