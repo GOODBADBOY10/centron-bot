@@ -16,8 +16,8 @@ export const handleCancelToMain = async (ctx) => {
 
         let message = "";
         message += "*Welcome to Centron Bot* 👋\n\n";
-        message += "Trade seamlessly on Sui with low fees + high speeds. Full support for all DEXes, including memecoin launchpads.\n\n";
-        message += "Sui Wallet Address:\n";
+        message += "Trade seamlessly on Sui with low fees + high speeds. We support all DEXes, including memecoin launchpads.\n\n";
+        // message += "Sui Wallet Address:\n";
 
         for (let i = 0; i < wallets.length; i++) {
             const wallet = wallets[i];
@@ -26,7 +26,7 @@ export const handleCancelToMain = async (ctx) => {
 
             const balance = await getBalance(address) || { sui: "0", usd: "0" };
             const name = wallet.name?.trim();
-            const label = name || `Wallet ${i + 1}`;
+            const label = name || `Sui Wallet ${i + 1}`;
 
             // Escape special Markdown characters
             const escapedAddress = address.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");

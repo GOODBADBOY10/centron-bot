@@ -77,15 +77,15 @@ export async function handleStart(ctx) {
 
             let message = "";
             message += "Welcome to *Centron Bot* 👋\n\n";
-            message += "Trade seamlessly on Sui with low fees + high speeds. Full support for all DEXes, including memecoin launchpads.\n\n";
-            message += "Sui Wallet Address:\n";
+            message += "Trade seamlessly on Sui with low fees + high speeds. We support all DEXes, including memecoin launchpads.\n\n";
+            // message += "Sui Wallet Address:\n";
 
             balances.forEach((entry, i) => {
                 if (!entry) return;
                 const { wallet, balance } = entry;
                 const address = wallet.walletAddress;
                 const name = wallet.name?.trim();
-                const label = `${name || `Wallet ${i + 1}`}`;
+                const label = `${name || `Sui Wallet ${i + 1}`}`;
                 message += `${label}: ${balance.sui} SUI ($${balance.usd})\n`;
                 message += `\`${address}\` (tap to copy)\n\n`;
             });
