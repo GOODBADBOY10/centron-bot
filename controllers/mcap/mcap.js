@@ -1,4 +1,5 @@
-import { formatPrice, getFallbackTokenDetails } from "../../utils/getTokenDetails.js";
+import { formatPrice } from "../../utils/getTokenDetails.js";
+import { getFallbackTokenDetails } from '../../utils/getTokenDetails.js';
 import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/aftermath.js";
 import { bot } from "../lib/bot.js";
 import { markOrderAsCompleted } from "../lib/db.js";
@@ -12,6 +13,7 @@ export async function checkPendingMcapOrders() {
     const orders = await getAllPendingLimitOrders();
     for (const order of orders) {
         try {
+            
             const { tokenInfo } = await getFallbackTokenDetails(order.tokenAddress, order.walletAddress);
             if (!tokenInfo || typeof tokenInfo.marketCap !== "number") {
                 console.warn(`⚠️ MarketCap missing for token ${order.tokenAddress}`);
