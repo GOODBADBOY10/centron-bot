@@ -1,8 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import botModule from './controllers/lib/bot.js';
-import { getAllPendingLimitOrders } from './controllers/lib/db.js';
-
+import { checkPendingMcapOrders } from './controllers/mcap/mcap.js'
 dotenv.config();
 
 const { bot, webhookCallback } = botModule;
@@ -45,5 +44,9 @@ app.listen(PORT, () => {
 
 // Background polling/checking task (e.g. every 20 seconds)
 setInterval(() => {
-    getAllPendingLimitOrders();
+    try {
+        checkPendingMcapOrders();
+    } catch (err) {
+        console.error("Error in checkPendingMcapOrders:", err);
+    }
 }, 20 * 1000);
