@@ -1,10 +1,11 @@
-import { formatPrice } from "../../utils/getTokenDetails.js";
+import { formatPrice, getFallbackTokenDetails } from "../../utils/getTokenDetails.js";
 import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/aftermath.js";
-import bot from "../lib/bot.js";
+import { bot } from "../lib/bot.js";
 import { markOrderAsCompleted } from "../lib/db.js";
 import { getUser } from "../lib/db.js";
 import { getAllPendingLimitOrders } from "../lib/db.js";
 import { decryptWallet } from "../lib/generateWallet.js";
+
 
 export async function checkPendingMcapOrders() {
     const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET
