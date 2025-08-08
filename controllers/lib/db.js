@@ -6,7 +6,7 @@ const serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG);
 serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+    credential: admin.credential.cert(serviceAccount),
 });
 
 const db = admin.firestore();
@@ -367,6 +367,7 @@ export async function getReferralStats(userId) {
     return `🔗 Your reflink: ${link}\n👥 Referrals: ${count}`;
 }
 
+
 export async function saveOrUpdatePosition(userId, walletAddress, tokenInfo) {
     const userRef = db.collection('users').doc(userId.toString());
     const userDoc = await userRef.get();
@@ -375,58 +376,61 @@ export async function saveOrUpdatePosition(userId, walletAddress, tokenInfo) {
         tokenAddress,
         symbol,
         amountBought,
-        amountInSUI
+        amountInSUI,
+        decimals = 9
     } = tokenInfo;
 
+    const humanAmount = amountBought;
+    const price = humanAmount === 0 ? 0 : amountInSUI / humanAmount;
+
     const newTx = {
-        amount: amountBought,
-        price: amountBought === 0 ? 0 : amountInSUI / amountBought,
+        amount: humanAmount,
+        price,
         time: Date.now()
     };
 
     const walletKey = walletAddress.toLowerCase();
-
     let positionsByWallet = {};
+
     if (userDoc.exists) {
         const userData = userDoc.data();
-        // Ensure it's using object structure
         positionsByWallet = typeof userData.positions === 'object' && !Array.isArray(userData.positions)
             ? userData.positions
             : {};
     }
-    // Ensure positions array for this wallet exists
+
     const walletPositions = positionsByWallet[walletKey] || [];
-    // Check if token already exists
     const index = walletPositions.findIndex(p => p.tokenAddress === tokenAddress);
 
     if (index !== -1) {
-        // Update existing position
         const existing = walletPositions[index];
+        const updatedAmount = existing.totalAmount + humanAmount;
+        const updatedCost = existing.totalCostSUI + amountInSUI;
+        const avgPrice = updatedCost / (updatedAmount || 1);
+
         const updated = {
             ...existing,
-            totalAmount: existing.totalAmount + amountBought,
-            totalCostSUI: existing.totalCostSUI + amountInSUI,
-            avgPriceSUI:
-                (existing.totalCostSUI + amountInSUI) /
-                (existing.totalAmount + amountBought || 1),
+            totalAmount: updatedAmount,
+            totalCostSUI: updatedCost,
+            avgPriceSUI: avgPrice,
             lastUpdated: Date.now(),
             txHistory: [...(existing.txHistory || []), newTx]
         };
+
         walletPositions[index] = updated;
     } else {
-        // New position
         walletPositions.push({
             tokenAddress,
             symbol,
-            totalAmount: amountBought,
+            decimals,
+            totalAmount: humanAmount,
             totalCostSUI: amountInSUI,
-            avgPriceSUI: newTx.price,
+            avgPriceSUI: price,
             lastUpdated: Date.now(),
             txHistory: [newTx]
         });
     }
 
-    // Save updated structure
     positionsByWallet[walletKey] = walletPositions;
     await userRef.update({ positions: positionsByWallet });
 }

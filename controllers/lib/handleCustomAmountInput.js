@@ -89,12 +89,18 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                 if (!result) throw new Error("No result returned");
 
                 if (mode === 'buy') {
-                    await saveOrUpdatePosition(userId, address, {
+                    const rawAmount = result.tokenAmountReceived;
+                    const decimals = result.decimals ?? 9;
+
+                    const humanAmount = rawAmount / (10 ** decimals);
+
+                    await saveOrUpdatePosition(userId, address, removeUndefined({
                         tokenAddress: result.tokenAddress,
                         symbol: result.tokenSymbol,
-                        amountBought: result.tokenAmountReceived,
+                        amountBought: humanAmount, 
                         amountInSUI: result.spentSUI,
-                    });
+                        decimals: decimals
+                    }));
                 }
                 const txLink = `https://suiscan.xyz/mainnet/tx/${result.txDigest}`;
                 results.push(`

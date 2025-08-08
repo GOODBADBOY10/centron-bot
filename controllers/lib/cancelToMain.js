@@ -32,7 +32,7 @@ export const handleCancelToMain = async (ctx) => {
             const escapedAddress = address.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
             const escapedLabel = label.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
 
-            message += `*${escapedLabel}*: ${balance.sui} SUI ($${balance.usd}) \n`;
+            message += `*${escapedLabel}: ${balance.sui} SUI ($${balance.usd})*\n`;
             message += `\`${escapedAddress}\` (tap to copy)\n\n`;
         }
 

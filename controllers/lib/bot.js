@@ -20,6 +20,7 @@ import { handleWalletImport } from "./handleWalletImport.js";
 import { showWalletsForPositions } from "./showWalletsForPositions.js";
 import { saveUserStep, clearUserStep } from "./db.js";
 import { handleExecuteTokenWithdraw, handleWithdrawTokenAddress } from "../tokens/withdrawToken.js";
+import { decryptWallet } from "./generateWallet.js";
 
 export const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
@@ -104,10 +105,15 @@ bot.on("message", async (ctx, next) => {
     return;
   }
 
+
   if (step?.state === "confirming_seed_phrase") {
     const userInput = ctx.message.text.trim();
-    const seedMatch = normalize(userInput) === normalize(step.expectedSeed || "");
-    const pkMatch = userInput === step.expectedPrivateKey;
+    const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET;
+    const decryptedSeed = decryptWallet(step.expectedSeed, ENCRYPTION_SECRET);
+    const decryptedPK = decryptWallet(step.expectedPrivateKey, ENCRYPTION_SECRET);
+
+    const seedMatch = normalize(userInput) === normalize(decryptedSeed);
+    const pkMatch = userInput === decryptedPK;
 
     if (seedMatch || pkMatch) {
       await ctx.reply("✅ Wallet connected successfully!");

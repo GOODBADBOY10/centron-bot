@@ -65,7 +65,6 @@ export async function handleBackToMenu(ctx) {
     let message = '';
     message += 'Welcome to *Centron Bot* 👋\n\n';
     message += "Trade seamlessly on Sui with low fees + high speeds. We support all DEXes, including memecoin launchpads.\n\n";
-    // message += "Sui Wallet Address:\n";
 
     balances.forEach((entry, i) => {
         if (!entry) return;
@@ -73,8 +72,10 @@ export async function handleBackToMenu(ctx) {
         const address = wallet.walletAddress;
         const name = wallet.name?.trim();
         const label = `${name || `Sui Wallet ${i + 1}`}`;
-        message += `${label}: ${balance.sui} SUI $${balance.usd}\n`;
-        message += `\`${address}\` (tap to copy)\n\n`;
+        const escapedLabel = label.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
+        const escapedAddress = address.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
+        message += `*${escapedLabel}: ${balance.sui} SUI ($${balance.usd})*\n`;
+        message += `\`${escapedAddress}\` \\(tap to copy\\)\n\n`;
     });
 
     message += 'To start trading, tap "Buy a Token" and paste the token address.';

@@ -63,7 +63,13 @@ function formatTinyPrice(value) {
     if (value >= 0.01) return `$${value.toFixed(4)}`;
     if (value >= 0.0001) return `$${value.toFixed(6)}`;
     const exponent = Math.floor(Math.log10(value));
-    const base = value / Math.pow(10, exponent);
-    const subscript = ("" + Math.abs(exponent)).split("").map(d => "₀₁₂₃₄₅₆₇₈₉"[d]).join("");
-    return `$0.0${subscript}${base.toFixed(2)}`;
+    const subscriptDigits = Math.abs(exponent) - 1; // e.g. 1e-6 → subscript 5
+    const base = Math.round(value * Math.pow(10, subscriptDigits + 1)); // significant digits
+
+    const subscript = subscriptDigits
+        .toString()
+        .split("")
+        .map(d => "₀₁₂₃₄₅₆₇₈₉"[d])
+        .join("");
+    return `$0.0${subscript}${base}`;
 }
