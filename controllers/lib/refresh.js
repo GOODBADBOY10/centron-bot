@@ -75,7 +75,7 @@ export async function handleBackToMenu(ctx) {
         const escapedLabel = label.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
         const escapedAddress = address.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
         message += `*${escapedLabel}: ${balance.sui} SUI ($${balance.usd})*\n`;
-        message += `\`${escapedAddress}\` \\(tap to copy\\)\n\n`;
+        message += `\`${escapedAddress}\` \(tap to copy\)\n\n`;
     });
 
     message += 'To start trading, tap "Buy a Token" and paste the token address.';

@@ -111,7 +111,6 @@ bot.on("message", async (ctx, next) => {
     const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET;
     const decryptedSeed = decryptWallet(step.expectedSeed, ENCRYPTION_SECRET);
     const decryptedPK = decryptWallet(step.expectedPrivateKey, ENCRYPTION_SECRET);
-
     const seedMatch = normalize(userInput) === normalize(decryptedSeed);
     const pkMatch = userInput === decryptedPK;
 

@@ -149,7 +149,7 @@ export const buyTokenWithAftermath = async ({ tokenAddress, phrase, suiAmount, s
       error.feeTransactionDigest = feeTransactionDigest;
       error.message = `Trade failed but fee was already taken. Fee TX: ${feeTransactionDigest}. Error: ${error.message}`;
     }
-
+    
     throw error;
   }
 };
