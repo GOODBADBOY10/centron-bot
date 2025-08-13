@@ -301,10 +301,17 @@ export const getInsidexTokenDetails = async (token, walletAddress) => {
   try {
     const response = await fetch(`https://api-ex.insidex.trade/coins/${token}/market-data`, requestOptions);
     const data = await response.json();
-    const normalizedData = data.map((item) => normalizeTokenData(item, "Insidex"));
-    return normalizedData;
+    if (!data) {
+      console.error("Insidex returned empty response");
+      return null;
+    }
+    const normalizedData = normalizeTokenData(data, "Insidex");
+    return [normalizedData];
+    // const normalizedData = data.map((item) => normalizeTokenData(item, "Insidex"));
+    // return normalizedData;
   } catch (err) {
-    console.error("Failed to fetch normalized data", err.message);
+    console.error("Failed to fetch normalized data", err.message || err);
+    return null;
   }
 }
 
