@@ -114,52 +114,68 @@ export function formatBigNumber(num) {
 }
 
 export async function getFallbackTokenDetails(tokenAddress, walletAddress, options = {}) {
+  const { skipPriceInSui = false, suiUsdPrice: injectedSuiUsdPrice } = options;
+
+  // Handle native SUI immediately
+  if (tokenAddress === "0x2::sui::SUI") {
+    return {
+      tokenInfo: {
+        price: 1,
+        priceInSui: 1,
+        symbol: "SUI",
+        decimals: 9,
+      },
+      source: "Native",
+    };
+  }
+
+  // Helper to wrap with timeout
+  const safeFetch = (fn, name, timeout = 4000) =>
+    withTimeout(fn(), timeout).catch(err => {
+      console.log(`${name} failed:`, err.message || err);
+      return null;
+    });
+
+  // Start both requests in parallel (Dexscreener in background)
+  const dexscreenerPromise = safeFetch(() => getTokenDetails(tokenAddress, walletAddress), "Dexscreener", 1000);
+  const insidexPromise = safeFetch(() => getInsidexTokenDetails(tokenAddress), "Insidex", 5000); // shorter timeout
+
   let tokenInfo = null;
   let source = null;
 
-  try {
-    const insidexResult = await withTimeout(getInsidexTokenDetails(tokenAddress), 8000);
-    if (insidexResult?.length) {
+  // Wait for dexscreener first
+  const dexscreenerResult = await dexscreenerPromise;
+  if (dexscreenerResult) {
+    tokenInfo = dexscreenerResult;
+    source = "Dexscreener";
+  } else {
+    const insidexResult = await insidexPromise;
+    if (insidexResult && Array.isArray(insidexResult) && insidexResult.length) {
       tokenInfo = insidexResult[0];
       source = "Insidex";
     }
-  } catch (err) {
-    // console.error("Failed to fetch insidex result", err.message);
   }
-
-  if (!tokenInfo) {
-    try {
-      tokenInfo = await withTimeout(getTokenDetails(tokenAddress, walletAddress), 8000);
-      if (tokenInfo) {
-        source = "Dexscreener";
-      }
-    } catch (err) {
-      console.error("Failed to fetch dexscreener", err.message);
-    }
-  }
-
+  // If no token info found from either
   if (!tokenInfo) return { tokenInfo: null, source: null };
 
-  if (!options.skipPriceInSui) {
+  // Calculate priceInSui if needed
+  if (!skipPriceInSui) {
     try {
       if (tokenInfo.price > 0) {
-        const suiUsdPrice = await withTimeout(getSuiUsdPrice(walletAddress), 8000);
-        tokenInfo.priceInSui =
-          suiUsdPrice && !isNaN(suiUsdPrice) ? tokenInfo.price / suiUsdPrice : 0;
+        const suiUsd = injectedSuiUsdPrice
+          ?? await safeFetch(() => getSuiUsdPrice(walletAddress), "getSuiUsdPrice", 2000);
+        tokenInfo.priceInSui = suiUsd && !isNaN(suiUsd) ? tokenInfo.price / suiUsd : 0;
       } else {
         tokenInfo.priceInSui = 0;
       }
-    } catch (err) {
+    } catch {
       tokenInfo.priceInSui = 0;
     }
   } else {
     tokenInfo.priceInSui = 0;
   }
 
-  return {
-    tokenInfo,
-    source,
-  };
+  return { tokenInfo, source };
 }
 
 export function abbreviateNumber(num) {

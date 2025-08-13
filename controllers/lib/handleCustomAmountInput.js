@@ -2,7 +2,7 @@ import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/afte
 import { saveOrUpdatePosition, savePendingLimitOrder } from "./db.js";
 import { updateUserStep, saveUserStep } from "./db.js";
 import { decryptWallet } from "./generateWallet.js";
-import { formatNumber } from "./handleAction.js";
+import { formatNumber, removeUndefined } from "./handleAction.js";
 import { toSmallestUnit } from "./suiAmount.js";
 
 export async function handleCustomAmountInput(ctx, step, userId) {
