@@ -264,18 +264,7 @@ export const getTokenDetails = async (token, walletAddress) => {
 }
 
 export function normalizeTokenData(data, source) {
-  if (source === "Insidex") {
-    return {
-      name: data.coinMetadata.name || null,
-      symbol: data.coinMetadata.symbol || null,
-      address: data.coin || null,
-      marketCap: data.marketCap || null,
-      price: data.coinPrice ?? null,
-      decimals: data.coinMetadata.decimals ?? null,
-      date: data.totalLiquidityUsd || null,
-      source: "InsideX"
-    };
-  } else if (source === "Dexscreener") {
+  if (source === "Dexscreener") {
     return {
       name: data.baseToken.name || null,
       symbol: data.baseToken.symbol || null,
@@ -285,6 +274,17 @@ export function normalizeTokenData(data, source) {
       decimals: data.quoteToken.symbol || null,
       date: data.pairCreatedAt || null,
       source: "Dexscreener"
+    }
+  } else if (source === "Insidex") {
+    return {
+      name: data.coinMetadata.name || null,
+      symbol: data.coinMetadata.symbol || null,
+      address: data.coin || null,
+      marketCap: data.marketCap || null,
+      price: data.coinPrice ?? null,
+      decimals: data.coinMetadata.decimals ?? null,
+      date: data.totalLiquidityUsd || null,
+      source: "InsideX"
     };
   }
   return null;
@@ -305,10 +305,13 @@ export const getInsidexTokenDetails = async (token, walletAddress) => {
       console.error("Insidex returned empty response");
       return null;
     }
-    const normalizedData = normalizeTokenData(data, "Insidex");
-    return [normalizedData];
-    // const normalizedData = data.map((item) => normalizeTokenData(item, "Insidex"));
-    // return normalizedData;
+    let normalizedData;
+    if (Array.isArray(data)) {
+      normalizedData = data.map(item => normalizeTokenData(item, "Insidex"));
+    } else {
+      normalizedData = [normalizeTokenData(data, "Insidex")];
+    }
+    return normalizedData;
   } catch (err) {
     console.error("Failed to fetch normalized data", err.message || err);
     return null;
