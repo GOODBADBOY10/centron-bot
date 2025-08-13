@@ -303,7 +303,7 @@ export const getInsidexTokenDetails = async (token, walletAddress) => {
     const data = await response.json();
     const normalizedData = data.map((item) => normalizeTokenData(item, "Insidex"));
     return normalizedData;
-  } catch (error) {
+  } catch (err) {
     console.error("Failed to fetch normalized data", err.message);
   }
 }
