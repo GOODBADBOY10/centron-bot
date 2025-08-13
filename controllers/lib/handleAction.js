@@ -471,6 +471,7 @@ export async function handleAction(ctx, action, userId) {
 
                         results.push(`✅ ${wallet.name || shortAddress(address)}: Limit ${mode} order saved.`);
                     } else if (isMarketOrder) {
+                         await ctx.reply(`⏳ Executing ${mode} order for ${selectedWallets.length} wallet(s)...`);
                         const result = mode === "buy"
                             ? await buyTokenWithAftermath({ tokenAddress: step.tokenAddress, phrase, suiAmount, slippage: step.buySlippage })
                             : await sellTokenWithAftermath({ tokenAddress: step.tokenAddress, phrase, suiPercentage, slippage: step.sellSlippage });

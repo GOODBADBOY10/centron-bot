@@ -162,6 +162,18 @@ bot.on("message", async (ctx, next) => {
     return;
   }
 
+  // Withdraw SUI: step 1 (recipient)
+  if (step?.action === "awaiting_withdraw_sui_address") {
+    await handleWithdrawAddressInput(ctx, step);
+    return;
+  }
+
+  // Withdraw SUI: step 2 (amount)
+  if (step?.action === "awaiting_withdraw_amount") {
+    await handleWithdrawAmountInput(ctx, step);
+    return;
+  }
+
   // Limit order trigger value
   if (step?.state === "awaiting_limit_trigger_value") {
     await handleLimitTriggerValueInput(ctx, step);
@@ -198,18 +210,6 @@ bot.on("message", async (ctx, next) => {
     return;
   }
 
-  // Withdraw SUI: step 1 (recipient)
-  if (step?.action === "awaiting_withdraw_sui_address") {
-    await handleWithdrawAddressInput(ctx, step);
-    return;
-  }
-
-  // Withdraw SUI: step 2 (amount)
-  if (step?.action === "awaiting_withdraw_amount") {
-    await handleWithdrawAmountInput(ctx, step);
-    return;
-  }
-
   // Final fallback: generic action handler
   const isFreeTextReply =
     !step?.awaitingSlippageInput &&
@@ -218,8 +218,8 @@ bot.on("message", async (ctx, next) => {
     step?.state === "awaiting_wallet_generation_count" &&
     step?.state !== "awaiting_buy_token_address" &&
     step?.state !== "awaiting_sell_token_address" &&
-    step?.state !== "awaiting_withdraw_sui_address" &&
-    step?.state !== "awaiting_withdraw_amount" &&
+    step?.action !== "awaiting_withdraw_sui_address" &&
+    step?.action !== "awaiting_withdraw_amount" &&
     step?.name !== "withdraw_token_amount" &&
     step?.name !== "withdraw_token_address" &&
     !(replyTo?.includes("mnemonic") || replyTo?.includes("privatekey")) &&

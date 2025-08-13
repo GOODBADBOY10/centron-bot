@@ -14,7 +14,7 @@ export async function handleBuyTokenAddressFlow(ctx, step, tokenAddressFromStep 
 
     // ❌ Invalid token format
     if (!tokenAddress || !tokenAddress.includes("::"))
-        return ctx.reply("❌ Invalid token address format. Please use a valid Move coin type (e.g., 0x...::module::TOKEN).");
+        return ctx.reply("❌ Invalid token address format. Please use a valid Move coin type (e.g., 0x...::module::TOKEN)");
 
     // 🔄 Loading message
     let loadingMsg;
@@ -51,7 +51,7 @@ export async function handleBuyTokenAddressFlow(ctx, step, tokenAddressFromStep 
     }
 
     if (!result || !result.tokenInfo) {
-        return ctx.reply("❌ Token not found or lacks liquidity. Please try another token.");
+        return ctx.reply("❌ Token not found or lacks liquidity. Please try another token or start again.");
     }
 
     const { tokenInfo } = result;
@@ -80,9 +80,14 @@ export async function handleBuyTokenAddressFlow(ctx, step, tokenAddressFromStep 
 
     // ✅ Save selected wallet in step
     step.selectedWallets = [`w${wallets.findIndex(w => w.address.toLowerCase() === selectedWallet.address.toLowerCase())}`];
+    step.walletMap = wallets.reduce((map, wallet, index) => {
+        map[`w${index}`] = wallet;
+        return map;
+    }, {});
     step.seedPhrase = selectedWallet.seedPhrase;
     step.buySlippage = selectedWallet.buySlippage;
     step.sellSlippage = selectedWallet.sellSlippage;
+    await saveUserStep(userId, step);
 
     // ✅ Fetch balances
     const balances = [];
