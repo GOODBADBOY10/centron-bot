@@ -138,7 +138,7 @@ export async function getFallbackTokenDetails(tokenAddress, walletAddress, optio
     }
   }
 
-  if (!tokenInfo) return null;
+  if (!tokenInfo) return { tokenInfo: null, source: null };
 
   if (!options.skipPriceInSui) {
     try {
