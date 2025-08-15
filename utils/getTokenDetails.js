@@ -113,6 +113,7 @@ export function formatBigNumber(num) {
   }
 }
 
+
 export async function getFallbackTokenDetails(tokenAddress, walletAddress, options = {}) {
   const { skipPriceInSui = false, suiUsdPrice: injectedSuiUsdPrice } = options;
 
@@ -133,49 +134,45 @@ export async function getFallbackTokenDetails(tokenAddress, walletAddress, optio
   const safeFetch = (fn, name, timeout = 4000) =>
     withTimeout(fn(), timeout).catch(err => {
       console.log(`${name} failed:`, err.message || err);
-      return null;
+      throw err; // important for Promise.any to skip failed ones
     });
 
-  // Start both requests in parallel (Dexscreener in background)
-  const dexscreenerPromise = safeFetch(() => getTokenDetails(tokenAddress, walletAddress), "Dexscreener", 1000);
-  const insidexPromise = safeFetch(() => getInsidexTokenDetails(tokenAddress), "Insidex", 5000); // shorter timeout
+  try {
+    // Run both in parallel and take whichever succeeds first
+    const result = await Promise.any([
+      safeFetch(() => getTokenDetails(tokenAddress, walletAddress), "Dexscreener", 1100),
+      safeFetch(() => getInsidexTokenDetails(tokenAddress), "Insidex", 2000)
+    ]);
 
-  let tokenInfo = null;
-  let source = null;
+    let tokenInfo = Array.isArray(result) ? result[0] : result;
+    let source = result.source || (result?.coinMetadata ? "Insidex" : "Dexscreener");
 
-  // Wait for dexscreener first
-  const dexscreenerResult = await dexscreenerPromise;
-  if (dexscreenerResult) {
-    tokenInfo = dexscreenerResult;
-    source = "Dexscreener";
-  } else {
-    const insidexResult = await insidexPromise;
-    if (insidexResult && Array.isArray(insidexResult) && insidexResult.length) {
-      tokenInfo = insidexResult[0];
-      source = "Insidex";
-    }
-  }
-  // If no token info found from either
-  if (!tokenInfo) return { tokenInfo: null, source: null };
+    // If no token info found
+    if (!tokenInfo) return { tokenInfo: null, source: null };
 
-  // Calculate priceInSui if needed
-  if (!skipPriceInSui) {
-    try {
-      if (tokenInfo.price > 0) {
-        const suiUsd = injectedSuiUsdPrice
-          ?? await safeFetch(() => getSuiUsdPrice(walletAddress), "getSuiUsdPrice", 2000);
-        tokenInfo.priceInSui = suiUsd && !isNaN(suiUsd) ? tokenInfo.price / suiUsd : 0;
-      } else {
+    // Calculate priceInSui if needed
+    if (!skipPriceInSui) {
+      try {
+        if (tokenInfo.price > 0) {
+          const suiUsd = injectedSuiUsdPrice
+            ?? await safeFetch(() => getSuiUsdPrice(walletAddress), "getSuiUsdPrice", 1800).catch(() => null);
+          tokenInfo.priceInSui = suiUsd && !isNaN(suiUsd) ? tokenInfo.price / suiUsd : 0;
+        } else {
+          tokenInfo.priceInSui = 0;
+        }
+      } catch {
         tokenInfo.priceInSui = 0;
       }
-    } catch {
+    } else {
       tokenInfo.priceInSui = 0;
     }
-  } else {
-    tokenInfo.priceInSui = 0;
-  }
 
-  return { tokenInfo, source };
+    return { tokenInfo, source };
+
+  } catch (err) {
+    console.error("❌ Both sources failed:", err);
+    return { tokenInfo: null, source: null };
+  }
 }
 
 export function abbreviateNumber(num) {
@@ -279,7 +276,7 @@ export function normalizeTokenData(data, source) {
     return {
       name: data.coinMetadata.name || null,
       symbol: data.coinMetadata.symbol || null,
-      address: data.coin || null,
+      address: data.coinMetadata.coinType || null,
       marketCap: data.marketCap || null,
       price: data.coinPrice ?? null,
       decimals: data.coinMetadata.decimals ?? null,
@@ -290,33 +287,41 @@ export function normalizeTokenData(data, source) {
   return null;
 }
 
-export const getInsidexTokenDetails = async (token, walletAddress) => {
-  var myHeaders = new Headers();
+export const getInsidexTokenDetails = async (token) => {
+  const myHeaders = new Headers();
   myHeaders.append("x-api-key", process.env.INSIDEX_KEY);
-  var requestOptions = {
-    method: 'GET',
-    headers: myHeaders,
-    redirect: 'follow'
-  };
   try {
-    const response = await fetch(`https://api-ex.insidex.trade/coins/${token}/market-data`, requestOptions);
-    const data = await response.json();
-    if (!data) {
-      console.error("Insidex returned empty response");
+    const response = await fetch(`https://api-ex.insidex.trade/coins/${token}/market-data`, {
+      method: 'GET',
+      headers: myHeaders,
+      redirect: 'follow'
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Insidex failed: ${response.status} ${response.statusText} - ${errorText}`);
       return null;
     }
-    let normalizedData;
-    if (Array.isArray(data)) {
-      normalizedData = data.map(item => normalizeTokenData(item, "Insidex"));
-    } else {
-      normalizedData = [normalizeTokenData(data, "Insidex")];
+
+    const data = await response.json();
+
+    // If it's an object, normalize it directly
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      return normalizeTokenData(data, "Insidex");
     }
-    return normalizedData;
-  } catch (err) {
-    console.error("Failed to fetch normalized data", err.message || err);
+
+    // If it's already an array, normalize each item
+    if (Array.isArray(data)) {
+      return data.map(item => normalizeTokenData(item, "Insidex"));
+    }
+
+    console.error("❌ Unexpected response structure:", data);
+    return null;
+  } catch (error) {
+    console.error("❌ Fetch error:", error);
     return null;
   }
-}
+};
 
 export const getTokenPriceSui = async (token) => {
   const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${token}`, {

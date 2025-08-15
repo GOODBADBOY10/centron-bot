@@ -28,7 +28,7 @@ export async function handleBuyTokenAddressFlow(ctx, step, tokenAddressFromStep 
     try {
         [user, result] = await Promise.all([
             getUser(userId),
-            withTimeout(getFallbackTokenDetails(tokenAddress, step.selectedWallets?.[0]), 2000),
+            withTimeout(getFallbackTokenDetails(tokenAddress, step.selectedWallets?.[0]), 1800),
         ]);
     } catch (err) {
         console.error("❌ Token info fetch failed:", err);
@@ -93,8 +93,8 @@ export async function handleBuyTokenAddressFlow(ctx, step, tokenAddressFromStep 
     const balances = [];
     try {
         const [tokenBalance, suiBalance] = await Promise.all([
-            withTimeout(getCoinBalance(selectedWallet.address, tokenInfo.address), 3000),
-            withTimeout(getBalance(selectedWallet.address), 3000),
+            withTimeout(getCoinBalance(selectedWallet.address, tokenInfo.address), 2500),
+            withTimeout(getBalance(selectedWallet.address), 2500),
         ]);
         balances.push({ wallet: selectedWallet, suiBalance, tokenBalance });
     } catch (err) {

@@ -31,7 +31,7 @@ export async function handleSellTokenAddressFlow(ctx, step, tokenAddressFromStep
     try {
         [user, result] = await Promise.all([
             getUser(userId),
-            withTimeout(getFallbackTokenDetails(tokenAddress, step.selectedWallets?.[0]), 20000),
+            withTimeout(getFallbackTokenDetails(tokenAddress, step.selectedWallets?.[0]), 1800),
         ]);
     } catch (err) {
         if (loadingMsg) {
@@ -82,16 +82,21 @@ export async function handleSellTokenAddressFlow(ctx, step, tokenAddressFromStep
 
     // Update step state
     step.selectedWallets = [`w${wallets.findIndex(w => w.address.toLowerCase() === selectedWallet.address.toLowerCase())}`];
+    step.walletMap = wallets.reduce((map, wallet, index) => {
+        map[`w${index}`] = wallet;
+        return map;
+    }, {});
     step.seedPhrase = selectedWallet.seedPhrase;
     step.buySlippage = selectedWallet.buySlippage;
     step.sellSlippage = selectedWallet.sellSlippage;
+    await saveUserStep(userId, step);
 
     // Fetch balances
     const balances = [];
     try {
         const [tokenBalance, suiBalance] = await Promise.all([
-            withTimeout(getCoinBalance(selectedWallet.address, tokenInfo.address), 10000),
-            withTimeout(getBalance(selectedWallet.address), 10000),
+            withTimeout(getCoinBalance(selectedWallet.address, tokenInfo.address), 2500),
+            withTimeout(getBalance(selectedWallet.address), 2500),
         ]);
         balances.push({ wallet: selectedWallet, suiBalance, tokenBalance });
     } catch (err) {
