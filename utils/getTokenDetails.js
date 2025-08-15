@@ -141,7 +141,7 @@ export async function getFallbackTokenDetails(tokenAddress, walletAddress, optio
     // Run both in parallel and take whichever succeeds first
     const result = await Promise.any([
       safeFetch(() => getTokenDetails(tokenAddress, walletAddress), "Dexscreener", 1200),
-      safeFetch(() => getInsidexTokenDetails(tokenAddress), "Insidex", 4000)
+      safeFetch(() => getInsidexTokenDetails(tokenAddress), "Insidex", 5000)
     ]);
 
     let tokenInfo = Array.isArray(result) ? result[0] : result;
