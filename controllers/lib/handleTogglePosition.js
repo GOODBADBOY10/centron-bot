@@ -17,6 +17,19 @@ export function removeUndefined(obj) {
     return obj;
 }
 
+
+async function safeEditMessage(ctx, text, options = {}) {
+    try {
+        await ctx.editMessageText(text, options);
+    } catch (err) {
+        if (err?.description?.includes("message is not modified")) {
+            // ignore harmless Telegram error
+            return;
+        }
+        throw err;
+    }
+}
+
 export const handleToggleBuySell = async (ctx, action) => {
     const userId = ctx.from.id.toString();
     const index = action.replace("toggle_buy_sell_idx_", "");
@@ -179,6 +192,7 @@ export const handleBuySellAmount = async (ctx, action) => {
         console.warn("⚠ Wallet address not found in step data");
         return ctx.answerCbQuery("⚠ Wallet not found");
     }
+
     const positions = (step[`cachedPositions_${index}`] || []).map(p => ({
         ...p,
         tokenAddress: p.tokenAddress || p.coinType,
@@ -220,29 +234,49 @@ export const handleBuySellAmount = async (ctx, action) => {
         selectedToken?.coinType?.split("::")?.[2] ||
         "Unknown";
 
+    let amountLine = "";
+    if (isBuy) {
+        amountLine = `${amount} SUI\n`;
+    } else {
+        amountLine = `${amount} %\n`;
+    }
+
     const confirmationMessage =
         `${isBuy ? "💰" : "💸"} Confirm ${actionType.toUpperCase()}\n\n` +
         `Token: $${tokenSymbol}\n` +
-        `Amount: ${amount} SUI\n` +
+        amountLine +
+        // `Amount: ${amount} SUI\n` +
         `Action: ${actionType === "buy" ? "Buy" : "Sell"}\n\n` +
         `Are you sure?`;
+
+    const confirmKey = `confirm_${actionType}_${index}`;
+
+    await saveUserStep(userId, {
+        ...step,
+        [confirmKey]: {
+            tokenAddress: selectedTokenAddress, // full address
+            amount,                              // string, e.g. "25"
+        },
+    });
 
     const confirmationKeyboard = {
         inline_keyboard: [
             [
                 {
                     text: `✅ Confirm ${actionType.toUpperCase()}`,
-                    callback_data: `confirm_${actionType}_${index}_${tokenKey}_${amount}`
-                }
+                    // Use the short key as callback_data
+                    callback_data: confirmKey,
+                },
             ],
-            [{ text: "❌ Cancel", callback_data: `view_pos_idx_${index}` }]
-        ]
+            [{ text: "❌ Cancel", callback_data: `view_pos_idx_${index}` }],
+        ],
     };
 
-    return ctx.editMessageText(confirmationMessage, {
+    return safeEditMessage(ctx, confirmationMessage, {
         parse_mode: "HTML",
-        reply_markup: confirmationKeyboard
+        reply_markup: confirmationKeyboard,
     });
+    
 };
 
 
@@ -250,20 +284,26 @@ export const handleConfirmBuySell = async (ctx, action) => {
     const userId = ctx.from.id;
     const isBuy = action.startsWith("confirm_buy_");
     const actionType = isBuy ? "buy" : "sell";
-    const index = action.split("_").pop();
+
+    // action is like: "confirm_buy_0" or "confirm_sell_1"
+    const parts = action.split("_"); // ["confirm", "buy", "0"]
+    const index = parts[2];          // index
 
     const user = await getUser(userId);
     const step = user?.step || {};
-    const confirmData = step[action];
 
+    const confirmData = step[action]; // we saved this with the same key
     if (!confirmData) {
         return ctx.answerCbQuery("❌ Confirmation data missing or expired.");
     }
+
     const { tokenAddress, amount } = confirmData;
+
     await ctx.answerCbQuery(`🔄 Executing ${actionType} order...`);
+
     try {
         const wallets = user.wallets || [];
-        const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET
+        const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET;
         const walletKey = `wallet_${index}`;
         const walletAddress = step.walletMap?.[walletKey];
         const currentWallet = wallets.find(
@@ -285,18 +325,19 @@ export const handleConfirmBuySell = async (ctx, action) => {
         }
 
         if (!userPhrase || !walletAddress) throw new Error("Wallet or recovery phrase is not set.");
+
         const buySlippage = step.buySlippage;
         const sellSlippage = step.sellSlippage;
+
         const suiAmount = isBuy ? toSmallestUnit(parseFloat(amount)) : null;
         const suiPercentage = !isBuy ? parseInt(amount, 10) : null;
-        // Show loading state
-        try {
-            await ctx.editMessageText(`⏳ ${isBuy ? "Buying" : "Selling"} token...`, {
-                reply_markup: {
-                    inline_keyboard: [[{ text: "⏳ Processing...", callback_data: "processing" }]]
-                }
-            });
-        } catch (e) { }
+
+        // Show loading state (safely)
+        await safeEditMessage(ctx, `⏳ ${isBuy ? "Buying" : "Selling"} token...`, {
+            reply_markup: {
+                inline_keyboard: [[{ text: "⏳ Processing...", callback_data: "processing" }]],
+            },
+        });
 
         const result = isBuy
             ? await buyTokenWithAftermath({ tokenAddress, phrase: userPhrase, suiAmount, slippage: buySlippage })
@@ -311,43 +352,45 @@ export const handleConfirmBuySell = async (ctx, action) => {
                 tokenAddress: actualTokenAddress || tokenAddress,
                 symbol: tokenSymbol,
                 amountBought: tokenAmountReceived,
-                amountInSUI: spentSUI
+                amountInSUI: spentSUI,
             });
-            const message = `✅ BUY ORDER EXECUTED!\n\n` +
+
+            const message =
+                `✅ BUY ORDER EXECUTED!\n\n` +
                 `💰 Amount: ${amount} SUI\n` +
                 `🪙 Token: ${tokenSymbol}\n` +
                 `📈 Received: ${tokenAmountReceived} ${tokenSymbol}\n` +
                 `💸 Spent: ${spentSUI} SUI\n` +
                 `⏰ Time: ${new Date().toLocaleTimeString()}`;
 
-            await ctx.editMessageText(message, {
+            await safeEditMessage(ctx, message, {
                 parse_mode: "HTML",
                 reply_markup: {
                     inline_keyboard: [
                         [{ text: "🔄 Refresh Positions", callback_data: `view_pos_idx_${index}` }],
-                        [{ text: "← Main Menu", callback_data: "back_to_menu" }]
-                    ]
-                }
+                        [{ text: "← Main Menu", callback_data: "back_to_menu" }],
+                    ],
+                },
             });
-
         } else {
-            const message = `✅ SELL ORDER EXECUTED!\n\n` +
+            const message =
+                `✅ SELL ORDER EXECUTED!\n\n` +
                 `💸 Percentage: ${amount}%\n` +
                 `🎯 Token: ${tokenAddress.slice(0, 10)}...\n` +
                 `⏰ Time: ${new Date().toLocaleTimeString()}`;
 
-            await ctx.editMessageText(message, {
+            await safeEditMessage(ctx, message, {
                 parse_mode: "HTML",
                 reply_markup: {
                     inline_keyboard: [
                         [{ text: "🔄 Refresh Positions", callback_data: `view_pos_idx_${index}` }],
-                        [{ text: "← Main Menu", callback_data: "back_to_menu" }]
-                    ]
-                }
+                        [{ text: "← Main Menu", callback_data: "back_to_menu" }],
+                    ],
+                },
             });
         }
 
-        // Optionally auto-refresh after a delay
+        // Auto-refresh after a short delay
         setTimeout(() => {
             ctx.callbackQuery.data = `view_pos_idx_${index}`;
             handleViewPosition(ctx, ctx.callbackQuery.data);
@@ -355,13 +398,17 @@ export const handleConfirmBuySell = async (ctx, action) => {
 
     } catch (error) {
         console.error(`${actionType} order failed:`, error);
-        await ctx.editMessageText(`❌ ${actionType.toUpperCase()} ORDER FAILED\n\n${error.message || error}\n\nPlease try again.`, {
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: "🔄 Try Again", callback_data: `view_pos_idx_${index}` }],
-                    [{ text: "← Main Menu", callback_data: "back_to_menu" }]
-                ]
+        await safeEditMessage(
+            ctx,
+            `❌ ${actionType.toUpperCase()} ORDER FAILED\n\n${error.message || error}\n\nPlease try again.`,
+            {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: "🔄 Try Again", callback_data: `view_pos_idx_${index}` }],
+                        [{ text: "← Main Menu", callback_data: "back_to_menu" }],
+                    ],
+                },
             }
-        });
+        );
     }
 };
