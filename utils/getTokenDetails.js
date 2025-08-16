@@ -144,8 +144,12 @@ export async function getFallbackTokenDetails(tokenAddress, walletAddress, optio
       safeFetch(() => getInsidexTokenDetails(tokenAddress), "Insidex", 5000)
     ]);
 
+    if (!result) {
+      return { tokenInfo: null, source: null }; // early exit if null
+    }
+
     let tokenInfo = Array.isArray(result) ? result[0] : result;
-    let source = result.source || (result?.coinMetadata ? "Insidex" : "Dexscreener");
+    let source = result?.source ?? (result?.coinMetadata ? "Insidex" : "Dexscreener");
 
     // If no token info found
     if (!tokenInfo) return { tokenInfo: null, source: null };
