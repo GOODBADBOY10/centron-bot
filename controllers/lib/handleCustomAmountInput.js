@@ -91,6 +91,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                 if (mode === 'buy') {
                     const rawAmount = result.tokenAmountReceived;
                     const decimals = result.decimals ?? 9;
+                    const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
 
                     const humanAmount = rawAmount / (10 ** decimals);
 
@@ -106,7 +107,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                 results.push(`
                     ${wallet.name || shortAddress(address)} ✅ ${mode === "buy"
                         ? `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}`
-                        : `Swapped ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol} ↔ ${formatNumber(result.spentSUI)} SUI`}.\n\n` +
+                        : `Swapped ${formatNumber(tokenAmountReadable ?? 0)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI`}.\n\n` +
                     `🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`
                 );
 
