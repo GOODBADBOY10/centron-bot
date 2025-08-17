@@ -161,8 +161,8 @@ export async function renderMainMessage(ctx, userId) {
 
             try {
                 const [tokenBalance, suiBalance] = await Promise.all([
-                    withTimeout(getCoinBalance(address, tokenInfo.address), 10000),
-                    withTimeout(getBalance(address), 10000),
+                    withTimeout(getCoinBalance(address, tokenInfo.address), 5000),
+                    withTimeout(getBalance(address), 5000),
                 ]);
                 return { wallet: address, suiBalance, tokenBalance };
             } catch (err) {
@@ -183,7 +183,7 @@ export async function renderMainMessage(ctx, userId) {
     formattedMessage += `CA: <code>${tokenInfo.address}</code>\n\n`;
     formattedMessage += `Price: <b>${formatTinyPrice(tokenInfo.price || 0)}</b>\n`;
     formattedMessage += `Market Cap: <b>${formatBigNumber(Number(tokenInfo.marketCap))}</b>\n`;
-    formattedMessage += `Liquidity: <b>${formatBigNumber(Number(tokenInfo.date))}</b>\n\n`;
+    // formattedMessage += `Liquidity: <b>${formatBigNumber(Number(tokenInfo.date))}</b>\n\n`;
     formattedMessage += `<b>Selected Wallets:</b>\n`;
     for (const { wallet, suiBalance, tokenBalance } of balances) {
         const fullWallet = normalizedWallets.find(w => w.address?.toLowerCase() === wallet.toLowerCase());

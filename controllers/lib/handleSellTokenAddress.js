@@ -119,7 +119,7 @@ export async function handleSellTokenAddressFlow(ctx, step, tokenAddressFromStep
     formattedMessage += `CA: <code>${tokenInfo.address}</code>\n\n`;
     formattedMessage += `Price: <b>${formatTinyPrice(tokenInfo.price || 0)}</b>\n`;
     formattedMessage += `Market Cap: <b>${formatBigNumber(Number(tokenInfo.marketCap))}</b>\n`;
-    formattedMessage += `Liquidity: <b>${formatBigNumber(Number(tokenInfo.date))}</b>\n\n`;
+    // formattedMessage += `Liquidity: <b>${formatBigNumber(Number(tokenInfo.date))}</b>\n\n`;
     formattedMessage += `<b>Selected Wallets:</b>\n`;
 
     for (const { wallet, suiBalance, tokenBalance } of balances) {
