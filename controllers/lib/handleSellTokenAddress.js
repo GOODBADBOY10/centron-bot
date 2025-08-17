@@ -118,7 +118,7 @@ export async function handleSellTokenAddressFlow(ctx, step, tokenAddressFromStep
     formattedMessage += `<a href="${explorerLink}">Explorer</a> | <a href="${chartLink}">Chart</a>\n\n`;
     formattedMessage += `CA: <code>${tokenInfo.address}</code>\n\n`;
     formattedMessage += `Price: <b>${formatTinyPrice(tokenInfo.price || 0)}</b>\n`;
-    formattedMessage += `Market Cap: <b>${formatBigNumber(Number(tokenInfo.marketCap))}</b>\n`;
+    formattedMessage += `Market Cap: <b>${formatBigNumber(Number(tokenInfo.marketCap))}</b>\n\n`;
     // formattedMessage += `Liquidity: <b>${formatBigNumber(Number(tokenInfo.date))}</b>\n\n`;
     formattedMessage += `<b>Selected Wallets:</b>\n`;
 
