@@ -104,9 +104,10 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                     }));
                 }
                 const txLink = `https://suiscan.xyz/mainnet/tx/${result.transactionDigest}`;
+                const walletLink = `https://suiscan.xyz/mainnet/account/${address}`;
                 const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
                 results.push(
-                    `${wallet.name || shortAddress(address)} ✅ ${mode === "buy"
+                    `<a href="${walletLink}">${wallet.name || shortAddress(address)}</a> ✅ ${mode === "buy"
                         ? `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}`
                         : `Swapped ${formatNumber(tokenAmountReadable)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI`
                     }\n🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`
