@@ -490,13 +490,13 @@ export async function handleAction(ctx, action, userId) {
                                 decimals: decimals
                             }));
                         }
-                        const txLink = `https://suiscan.xyz/mainnet/tx/${result.txDigest}`;
+                        const txLink = `https://suiscan.xyz/mainnet/tx/${result.transactionDigest}`;
                         const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
-                        results.push(`
-                            ${wallet.name || shortAddress(address)} ✅ ${mode === "buy"
-                                ? `Swapped ${formatNumber(result.spentSUI ?? 0)} SUI ↔ ${formatNumber(result.tokenAmountReadable ?? (result.tokenAmountReceived / 1e9))} $${result.tokenSymbol ?? "??"}`
-                                : `Swapped ${formatNumber(tokenAmountReadable ?? 0)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI`}.\n\n` +
-                            `🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`
+                        results.push(
+                            `${wallet.name || shortAddress(address)} ✅ ${mode === "buy"
+                                ? `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}`
+                                : `Swapped ${formatNumber(tokenAmountReadable)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI`
+                            }\n🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`
                         );
                     }
                     
@@ -512,7 +512,7 @@ export async function handleAction(ctx, action, userId) {
                 orderMode: null,
                 limitTriggerValue: null,
             });
-            await ctx.reply(results.join("\n"), { parse_mode: "HTML" });
+            await ctx.reply(results.join("\n\n"), { parse_mode: "HTML" });
             return ctx.answerCbQuery();
         }
 

@@ -98,19 +98,19 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                     await saveOrUpdatePosition(userId, address, removeUndefined({
                         tokenAddress: result.tokenAddress,
                         symbol: result.tokenSymbol,
-                        amountBought: humanAmount, 
+                        amountBought: humanAmount,
                         amountInSUI: result.spentSUI,
                         decimals: decimals
                     }));
                 }
-                const txLink = `https://suiscan.xyz/mainnet/tx/${result.txDigest}`;
-                results.push(`
-                    ${wallet.name || shortAddress(address)} ✅ ${mode === "buy"
+                const txLink = `https://suiscan.xyz/mainnet/tx/${result.transactionDigest}`;
+                const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
+                results.push(
+                    `${wallet.name || shortAddress(address)} ✅ ${mode === "buy"
                         ? `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}`
-                        : `Swapped ${formatNumber(tokenAmountReadable ?? 0)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI`}.\n\n` +
-                    `🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`
+                        : `Swapped ${formatNumber(tokenAmountReadable)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI`
+                    }\n🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`
                 );
-
             } catch (error) {
                 results.push(`❌ ${wallet.name || shortAddress(address)}: ${error.message || error}`);
             }
@@ -123,7 +123,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             handlerType: null,
         });
 
-        return ctx.reply(results.join("\n"), { parse_mode: "HTML" });
+        return ctx.reply(results.join("\n\n"), { parse_mode: "HTML" });
     }
     // Position-based Confirm Flow
     else if (handlerType === 'position') {
