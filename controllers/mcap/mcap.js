@@ -13,7 +13,7 @@ export async function checkPendingMcapOrders() {
     const orders = await getAllPendingLimitOrders();
     for (const order of orders) {
         try {
-            
+
             const { tokenInfo } = await getFallbackTokenDetails(order.tokenAddress, order.walletAddress);
             if (!tokenInfo || typeof tokenInfo.marketCap !== "number") {
                 console.warn(`⚠️ MarketCap missing for token ${order.tokenAddress}`);
@@ -34,6 +34,10 @@ export async function checkPendingMcapOrders() {
             let phrase;
             try {
                 const encrypted = wallet?.seedPhrase || wallet?.privateKey;
+                if (!encrypted) {
+                    console.warn(`⚠️ No encrypted value for wallet ${order.walletAddress}`);
+                    continue;
+                }
                 const decrypted = decryptWallet(encrypted, ENCRYPTION_SECRET);
                 phrase = typeof decrypted === "string" ? decrypted : decrypted.privateKey || decrypted.seedPhrase;
             } catch (err) {
