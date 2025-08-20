@@ -381,7 +381,7 @@ export const handleConfirmBuySell = async (ctx, action) => {
 
             const message =
                 `<a href="${walletLink}">${currentWallet.name || shortAddress(walletAddress)}</a> ✅ ` +
-                `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}` +
+                `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}\n` +
                     `🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`;
 
             await safeEditMessage(ctx, message, {
@@ -403,7 +403,7 @@ export const handleConfirmBuySell = async (ctx, action) => {
 
             const message =
                 `<a href="${walletLink}">${currentWallet.name || shortAddress(walletAddress)}</a> ✅ ` +
-                `Swapped ${formatNumber(tokenAmountReadable)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI` +
+                `Swapped ${formatNumber(tokenAmountReadable)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI \n` +
                     `🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`;
 
             await safeEditMessage(ctx, message, {
