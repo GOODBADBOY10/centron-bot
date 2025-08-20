@@ -155,7 +155,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         if (mode === "buy") {
             amountLine = `${amount} SUI\n`;
         } else {
-            amountLine = `Percentage ${amount}%\n`;
+            amountLine = `Percentage: ${amount}%\n`;
         }
 
         const confirmationMessage =
@@ -182,7 +182,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             inline_keyboard: [
                 [
                     {
-                        text: `✅ Confirm }`,
+                        text: `✅ Confirm`,
                         callback_data: confirmKey
                     },
                     {
