@@ -47,7 +47,7 @@ export async function handleWithdrawTokens(ctx, action) {
             tokenTypes
         });
 
-        return ctx.reply("🪙 Select a token to withdraw:", {
+        return ctx.reply("📤 Select a token to withdraw:", {
             reply_markup: { inline_keyboard: tokenButtons }
         });
 
@@ -100,7 +100,7 @@ export async function handleWithdrawTokenAddress(ctx, step, inputAmount) {
         flowType: "withdraw_token",
         amount
     });
-    return ctx.reply("🏦 Enter destination wallet address:", {
+    return ctx.reply("💳 Enter destination wallet address:", {
         reply_markup: { force_reply: true }
     });
 }
