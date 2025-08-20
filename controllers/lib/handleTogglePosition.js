@@ -344,7 +344,6 @@ export const handleConfirmBuySell = async (ctx, action) => {
 
         await safeEditMessage(
             ctx,
-            // `⏳ Executing ${isBuy ? "buy" : "sell"} order for ${selectedWallets.length} wallet(s)...`
             `⏳ Executing ${isBuy ? "buy" : "sell"} order for 1 wallet(s)...`
         );
 
@@ -356,23 +355,31 @@ export const handleConfirmBuySell = async (ctx, action) => {
 
         if (!result) throw new Error(`No result returned from ${actionType} call`);
 
-        if (isBuy) {
-            const { tokenAmountReceived, tokenSymbol, tokenAddress: actualTokenAddress, spentSUI } = result;
 
-            await saveOrUpdatePosition(userId, walletAddress, {
-                tokenAddress: actualTokenAddress || tokenAddress,
-                symbol: tokenSymbol,
-                amountBought: tokenAmountReceived,
-                amountInSUI: spentSUI,
-            });
+        if (isBuy) {
+            const { tokenAmountReceived, tokenSymbol, tokenAddress: actualTokenAddress, spentSUI, transactionDigest } = result;
+
+            const rawAmount = result.tokenAmountReceived;
+            const decimals = result.decimals ?? 9;
+            const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
+
+            const humanAmount = rawAmount / (10 ** decimals);
+
+            await saveOrUpdatePosition(userId, walletAddress, removeUndefined({
+                tokenAddress: result.tokenAddress,
+                symbol: result.tokenSymbol,
+                amountBought: humanAmount,
+                amountInSUI: result.spentSUI,
+                decimals: decimals
+            }));
+
+            const walletLink = `https://suiscan.xyz/mainnet/account/${walletAddress}`;
+            const txLink = `https://suiscan.xyz/mainnet/tx/${result.transactionDigest}`;
 
             const message =
-                `✅ BUY ORDER EXECUTED!\n\n` +
-                `💰 Amount: ${amount} SUI\n` +
-                `🪙 Token: ${tokenSymbol}\n` +
-                `📈 Received: ${tokenAmountReceived} ${tokenSymbol}\n` +
-                `💸 Spent: ${spentSUI} SUI\n` +
-                `⏰ Time: ${new Date().toLocaleTimeString()}`;
+                `<a href="${walletLink}">${currentWallet.name || shortAddress(walletAddress)}</a> ✅ ` +
+                `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}`
+                    `🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`;
 
             await safeEditMessage(ctx, message, {
                 parse_mode: "HTML",
@@ -383,12 +390,18 @@ export const handleConfirmBuySell = async (ctx, action) => {
                     ],
                 },
             });
+
         } else {
+            const { tokenAmountSold, actualSuiReceived, tokenSymbol, transactionDigest } = result;
+            const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
+
+            const txLink = `https://suiscan.xyz/mainnet/tx/${result.transactionDigest}`;
+            const walletLink = `https://suiscan.xyz/mainnet/account/${walletAddress}`;
+
             const message =
-                `✅ SELL ORDER EXECUTED!\n\n` +
-                `💸 Percentage: ${amount}%\n` +
-                `🎯 Token: ${tokenAddress.slice(0, 10)}...\n` +
-                `⏰ Time: ${new Date().toLocaleTimeString()}`;
+                `<a href="${walletLink}">${currentWallet.name || shortAddress(walletAddress)}</a> ✅ ` +
+                `Swapped ${formatNumber(tokenAmountReadable)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI`
+                    `🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`;
 
             await safeEditMessage(ctx, message, {
                 parse_mode: "HTML",
@@ -401,7 +414,7 @@ export const handleConfirmBuySell = async (ctx, action) => {
             });
         }
 
-        // Auto-refresh after a short delay
+        // Auto-refresh after a short delay       
         setTimeout(() => {
             ctx.callbackQuery.data = `view_pos_idx_${index}`;
             handleViewPosition(ctx, ctx.callbackQuery.data);
