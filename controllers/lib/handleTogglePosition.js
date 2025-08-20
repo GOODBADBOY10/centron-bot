@@ -6,7 +6,6 @@ import { handleViewPosition } from "./handleViewPosition.js";
 import { toSmallestUnit } from "./suiAmount.js";
 import { shortAddress } from "./shortAddress.js";
 import { handleBuySellAmount, handleConfirmBuySell, handleSelectToken, handleToggleBuySell } from "./handleTogglePosition.js";
-import { handleViewPosition } from "./handleViewPosition.js";
 import { formatNumber } from "./handleAction.js";
 
 
