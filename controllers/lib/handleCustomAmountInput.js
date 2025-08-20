@@ -5,25 +5,6 @@ import { decryptWallet } from "./generateWallet.js";
 import { formatNumber, removeUndefined } from "./handleAction.js";
 import { toSmallestUnit } from "./suiAmount.js";
 import { shortAddress } from "./shortAddress.js";
-import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/aftermath.js";
-import { generateQRCode } from "../qrcode/genQr.js";
-import { handleWithdrawTokenAmount, handleWithdrawTokens } from "../tokens/withdrawToken.js";
-import { handleBuySlippage, handleSellSlippage } from "./buySlippage.js";
-import { handleCancelToMain } from "./cancelToMain.js";
-import { fetchUserStep } from "./db.js";
-import { savePendingLimitOrder } from "./db.js";
-import { saveOrUpdatePosition } from "./db.js";
-import { saveUserStep } from "./db.js";
-import { addWalletToUser, getUser } from "./db.js";
-import { handleDcaOrder, handleDcaSetDuration, handleDcaSetInterval } from "./dcaOrder.js";
-import { decryptWallet, encryptWallet } from "./generateWallet.js";
-import { shortAddress } from "./shortAddress.js";
-import { handlePositionsWalletList, showWalletsForPositions } from "./showWalletsForPositions.js";
-import { toSmallestUnit } from "./suiAmount.js";
-import { handleToggleAllWallets, handleToggleMode, handleToggleWallet } from "./toggle.js";
-import { userSteps } from "./userState.js";
-import { handleConfirmDeleteWallet, handleDeleteWalletPrompt, handleRenameWalletPrompt, handleWalletInfo } from "./walletName.js";
-import { handleConfirmWithdraw, handleWithdrawSui } from "./withdraw.js";
 
 export async function handleCustomAmountInput(ctx, step, userId) {
     const amount = parseFloat(ctx.message.text);

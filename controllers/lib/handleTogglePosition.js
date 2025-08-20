@@ -5,14 +5,8 @@ import { decryptWallet } from "./generateWallet.js";
 import { handleViewPosition } from "./handleViewPosition.js";
 import { toSmallestUnit } from "./suiAmount.js";
 import { shortAddress } from "./shortAddress.js";
-import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/aftermath.js";
-import { saveOrUpdatePosition } from "./db.js";
-import { saveUserStep, getUser } from "./db.js";
-import { decryptWallet } from "./generateWallet.js";
 import { handleBuySellAmount, handleConfirmBuySell, handleSelectToken, handleToggleBuySell } from "./handleTogglePosition.js";
 import { handleViewPosition } from "./handleViewPosition.js";
-import { shortAddress } from "./shortAddress.js";
-import { toSmallestUnit } from "./suiAmount.js";
 import { formatNumber } from "./handleAction.js";
 
 
