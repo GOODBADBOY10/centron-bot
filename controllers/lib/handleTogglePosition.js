@@ -212,9 +212,20 @@ export const handleBuySellAmount = async (ctx, action) => {
 
     // Handle custom input
     if (amount === "custom") {
+        let newState;
+        let prompt;
+
+        if (actionType === "buy") {
+            newState = "awaiting_custom_buy_amount";
+            prompt = "✍️ Enter the amount of SUI you want to use to BUY this token:";
+        } else if (actionType === "sell") {
+            newState = "awaiting_custom_sell_amount";
+            prompt = "How much of your tokens would you like to sell?\n\nPlease reply with the percentage.";
+        }
+
         const updatedStep = {
             ...step,
-            state: isBuy ? "awaiting_custom_buy_amount" : "awaiting_custom_sell_amount",
+            state: newState,
             tokenAddress: selectedTokenAddress,
             currentIndex: index,
             mode: actionType,
@@ -222,7 +233,7 @@ export const handleBuySellAmount = async (ctx, action) => {
         };
         await saveUserStep(userId, updatedStep);
 
-        return ctx.reply(`✍️ Please enter how much SUI you want to ${actionType}:`, {
+        return ctx.reply(prompt, {
             reply_markup: { force_reply: true },
         });
     }
@@ -245,9 +256,8 @@ export const handleBuySellAmount = async (ctx, action) => {
         `${isBuy ? "💰" : "💸"} Confirm ${actionType.toUpperCase()}\n\n` +
         `Token: $${tokenSymbol}\n` +
         amountLine +
-        // `Amount: ${amount} SUI\n` +
-        `Action: ${actionType === "buy" ? "Buy" : "Sell"}\n\n` +
-        `Are you sure?`;
+        `Action: ${actionType === "buy" ? "BUY" : "SELL"}\n\n` +
+        `Do you want to proceed?`;
 
     const confirmKey = `confirm_${actionType}_${index}`;
 
@@ -276,7 +286,7 @@ export const handleBuySellAmount = async (ctx, action) => {
         parse_mode: "HTML",
         reply_markup: confirmationKeyboard,
     });
-    
+
 };
 
 

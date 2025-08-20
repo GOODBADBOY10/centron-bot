@@ -132,6 +132,16 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         const mode = step.mode;
         const tokenAddress = step.tokenAddress;
 
+        // Get user positions (if available)
+        const positions = step.positions || [];
+        const pos = positions[index];
+
+        const tokenSymbol =
+            pos?.symbol ||
+            step.tokenInfo?.symbol ||
+            (tokenAddress ? tokenAddress.split("::").pop() : "Unknown");
+
+
         const updatedStep = {
             ...step,
             state: null,
@@ -141,11 +151,21 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         };
         await updateUserStep(userId, updatedStep);
 
-        const confirmationMessage = `${mode === 'buy' ? '💰' : '💸'} Confirm ${mode.toUpperCase()}\n\n` +
-            `Token: ${tokenAddress.slice(0, 10)}...\n` +
-            `Amount: ${amount} SUI\n` +
+        let amountLine = "";
+        if (mode === "buy") {
+            amountLine = `${amount} SUI\n`;
+        } else {
+            amountLine = `${amount} %\n`;
+        }
+
+        const confirmationMessage =
+            `${mode === 'buy' ? '💰' : '💸'} Confirm ${mode.toUpperCase()}\n\n` +
+            `Token: $${tokenSymbol}\n` +
+            amountLine +
             `Action: ${mode}\n\n` +
-            `Are you sure?`;
+            `Do you want to proceed?`;
+
+
         const confirmKey = `confirm_${mode}_${index}`;
         // Save amount + token in step
         await saveUserStep(userId, {
@@ -158,18 +178,21 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             }
         });
 
-
         const confirmationKeyboard = {
             inline_keyboard: [
                 [
                     {
                         text: `✅ Confirm ${mode.toUpperCase()}`,
                         callback_data: confirmKey
+                    },
+                    {
+                        text: "❌ Cancel",
+                        callback_data: `view_pos_idx_${index}`
                     }
-                ],
-                [{ text: "❌ Cancel", callback_data: `view_pos_idx_${index}` }]
+                ]
             ]
         };
+
         return ctx.reply(confirmationMessage, {
             parse_mode: "HTML",
             reply_markup: confirmationKeyboard
