@@ -4,6 +4,7 @@ import { updateUserStep, saveUserStep } from "./db.js";
 import { decryptWallet } from "./generateWallet.js";
 import { formatNumber, removeUndefined } from "./handleAction.js";
 import { toSmallestUnit } from "./suiAmount.js";
+import { shortAddress } from "./shortAddress.js";
 
 export async function handleCustomAmountInput(ctx, step, userId) {
     const amount = parseFloat(ctx.message.text);

@@ -4,6 +4,7 @@ import { saveOrUpdatePosition, saveUserStep, fetchUser, getUser } from "./db.js"
 import { decryptWallet } from "./generateWallet.js";
 import { handleViewPosition } from "./handleViewPosition.js";
 import { toSmallestUnit } from "./suiAmount.js";
+import { shortAddress } from "./shortAddress.js";
 
 
 export function removeUndefined(obj) {
