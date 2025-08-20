@@ -342,12 +342,13 @@ export const handleConfirmBuySell = async (ctx, action) => {
         const suiAmount = isBuy ? toSmallestUnit(parseFloat(amount)) : null;
         const suiPercentage = !isBuy ? parseInt(amount, 10) : null;
 
-        // Show loading state (safely)
-        await safeEditMessage(ctx, `⏳ ${isBuy ? "Buying" : "Selling"} token...`, {
-            reply_markup: {
-                inline_keyboard: [[{ text: "⏳ Processing...", callback_data: "processing" }]],
-            },
-        });
+        await safeEditMessage(
+            ctx,
+            // `⏳ Executing ${isBuy ? "buy" : "sell"} order for ${selectedWallets.length} wallet(s)...`
+            `⏳ Executing ${isBuy ? "buy" : "sell"} order for 1 wallet(s)...`
+        );
+
+
 
         const result = isBuy
             ? await buyTokenWithAftermath({ tokenAddress, phrase: userPhrase, suiAmount, slippage: buySlippage })

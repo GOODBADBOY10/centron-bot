@@ -155,14 +155,14 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         if (mode === "buy") {
             amountLine = `${amount} SUI\n`;
         } else {
-            amountLine = `${amount} %\n`;
+            amountLine = `Percentage ${amount}%\n`;
         }
 
         const confirmationMessage =
             `${mode === 'buy' ? '💰' : '💸'} Confirm ${mode.toUpperCase()}\n\n` +
             `Token: $${tokenSymbol}\n` +
             amountLine +
-            `Action: ${mode}\n\n` +
+            `Action: ${mode.toUpperCase()}\n\n` +
             `Do you want to proceed?`;
 
 
@@ -182,7 +182,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             inline_keyboard: [
                 [
                     {
-                        text: `✅ Confirm ${mode.toUpperCase()}`,
+                        text: `✅ Confirm }`,
                         callback_data: confirmKey
                     },
                     {
