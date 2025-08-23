@@ -7,10 +7,12 @@ let cachedSuiPrice = null;
 let lastPriceFetchTime = 0;
 
 const blockberry = process.env.BLOCKBERRYAPIKEY;
+const birdEyeKey = process.env.BIRD_EYE_API_KEY;
 
 export async function getBalance(address) {
     if (!address) throw new Error("No address provided to getBalance");
 
+    // --- 1. Try Blockberry ---
     try {
         const res = await fetch(
             `https://api.blockberry.one/sui/v1/accounts/${address}/balance`,
@@ -22,30 +24,103 @@ export async function getBalance(address) {
             }
         );
 
-        if (!res.ok) {
-            throw new Error(`Blockberry API error: ${res.status} ${res.statusText}`);
-        }
+        if (!res.ok) throw new Error(`Blockberry API error: ${res.status}`);
 
         const balances = await res.json();
 
-        // Find the SUI entry (coinType = 0x2::sui::SUI)
+        // Find SUI entry (coinType = 0x2::sui::SUI)
         const suiData = balances.find(
             (item) => item.coinType === "0x2::sui::SUI"
         );
 
         if (!suiData) {
-            return { sui: 0, usd: 0 };
+            return { sui: 0, usd: 0, source: "blockberry" };
         }
 
         return {
-            sui: Number(suiData.balance.toFixed(3)),
-            usd: Number(suiData.balanceUsd.toFixed(2)),
+            sui: Number(Number(suiData.balance).toFixed(3)),
+            usd: Number(Number(suiData.balanceUsd).toFixed(2)),
+            source: "blockberry",
         };
-    } catch (error) {
-        console.error("Error fetching balance from Blockberry:", error);
-        return null;
+    } catch (err) {
+        console.warn("Blockberry failed, falling back to BirdEye:");
+    }
+
+    // --- 2. Fallback to BirdEye ---
+    try {
+        // Get on-chain balance first (via Sui RPC client)
+        const balanceResult = await suiClient.getBalance({ owner: address });
+        const mistBalance = BigInt(balanceResult.totalBalance);
+        const suiBalance = Number(mistBalance) / 1e9;
+
+        // Get SUI price from BirdEye
+        const res = await fetch(
+            "https://public-api.birdeye.so/defi/price?address=0x2::sui::SUI",
+            {
+                headers: {
+                    accept: "application/json",
+                    "x-chain": "sui",
+                    "X-API-KEY": birdEyeKey || "",
+                },
+            }
+        );
+
+        if (!res.ok) throw new Error(`BirdEye API error: ${res.status}`);
+        const json = await res.json();
+
+        const suiPrice = json?.data?.value || 0;
+        const usdValue = suiBalance * suiPrice;
+
+        return {
+            sui: Number(suiBalance.toFixed(3)),
+            usd: Number(usdValue.toFixed(2)),
+            source: "birdeye",
+        };
+    } catch (err) {
+        console.error("Both Blockberry and BirdEye failed:");
+        return { sui: 0, usd: 0, source: "error" };
     }
 }
+
+
+// export async function getBalance(address) {
+//     if (!address) throw new Error("No address provided to getBalance");
+
+//     try {
+//         const res = await fetch(
+//             `https://api.blockberry.one/sui/v1/accounts/${address}/balance`,
+//             {
+//                 headers: {
+//                     accept: "*/*",
+//                     "x-api-key": blockberry,
+//                 },
+//             }
+//         );
+
+//         if (!res.ok) {
+//             throw new Error(`Blockberry API error: ${res.status} ${res.statusText}`);
+//         }
+
+//         const balances = await res.json();
+
+//         // Find the SUI entry (coinType = 0x2::sui::SUI)
+//         const suiData = balances.find(
+//             (item) => item.coinType === "0x2::sui::SUI"
+//         );
+
+//         if (!suiData) {
+//             return { sui: 0, usd: 0 };
+//         }
+
+//         return {
+//             sui: Number(suiData.balance.toFixed(3)),
+//             usd: Number(suiData.balanceUsd.toFixed(2)),
+//         };
+//     } catch (error) {
+//         console.error("Error fetching balance from Blockberry:", error);
+//         return null;
+//     }
+// }
 
 // export async function getBalance(address) {
 //     if (!address) throw new Error("No address provided to getBalance");
