@@ -28,7 +28,7 @@ export async function handleBuyTokenAddressFlow(ctx, step, tokenAddressFromStep 
     try {
         [user, result] = await Promise.all([
             getUser(userId),
-            withTimeout(getFallbackTokenDetails(tokenAddress, step.selectedWallets?.[0]), 1800),
+            withTimeout(getFallbackTokenDetails(tokenAddress, step.selectedWallets?.[0]), 6000),
         ]);
     } catch (err) {
         console.error("❌ Token info fetch failed:", err);
