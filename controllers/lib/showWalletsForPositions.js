@@ -2,7 +2,11 @@ import { getFallbackTokenDetails } from "../../utils/getTokenDetails.js";
 import { getUserPositions } from "./db.js";
 import { fetchUser, saveUserStep } from "./db.js"
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import * as dotenv from 'dotenv';
+import axios from 'axios';
+dotenv.config();
 
+const blockberryApiKey = process.env.BLOCKBERRYAPIKEY;
 
 export async function showWalletsForPositions(ctx, userId) {
     try {
@@ -50,66 +54,131 @@ export const getTokenPositions = async (userId, walletAddress, suiUsdPrice) => {
     const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
 
     const balances = await client.getAllBalances({ owner: walletAddress });
+    const filteredBalances = balances.filter(({ totalBalance }) => totalBalance !== "0");
+
+    // 🧠 Fetch user positions just once!
+    const userPositions = await getUserPositions(userId, walletAddress);
+
+    // 🆕 Get ALL token prices from Blockberry in one call
+    let blockberryData = [];
+    let suiUsdPriceFromApi = suiUsdPrice; // Fallback to provided price
+
+    try {
+        const options = {
+            method: 'GET',
+            url: `https://api.blockberry.one/sui/v1/accounts/${walletAddress}/balance`,
+            headers: {
+                accept: '*/*',
+                'x-api-key': blockberryApiKey,
+            },
+        };
+
+        const res = await axios.request(options);
+        blockberryData = res.data || [];
+
+        // Get SUI price from Blockberry for consistency
+        const suiToken = blockberryData.find(
+            token => token.coinType?.toLowerCase() === '0x2::sui::sui'
+        );
+
+        if (suiToken) {
+            suiUsdPriceFromApi = suiToken.coinPrice;
+        }
+    } catch (error) {
+        console.warn('⚠️ Failed to fetch Blockberry data, using fallback method:', error.message);
+    }
+
+    const metadataCache = {};
+    const fallbackCache = {};
 
     const tokenPositions = await Promise.all(
-        balances
-            .filter(({ totalBalance }) => totalBalance !== "0")
-            .map(async ({ coinType, totalBalance }) => {
-                try {
-                    const metadata = await client.getCoinMetadata({ coinType });
-                    const readableAmount = Number(totalBalance) / 10 ** (metadata.decimals || 9);
-                    // Try to get price and liquidity info
-                    const fallbackDetails = await getFallbackTokenDetails(coinType, walletAddress);
-                    const tokenInfo = fallbackDetails?.tokenInfo || {};
-
-                    // Try to get average entry if available
-                    const userPositions = await getUserPositions(userId, walletAddress);
-
-                    let stored = null;
-                    if (Array.isArray(userPositions)) {
-                        stored = userPositions.find(p => p.tokenAddress.toLowerCase() === coinType.toLowerCase());
-                    }
-                    const avgEntrySUI = stored?.avgPriceSUI || 0;
-                    const currentPriceSUI = tokenInfo.priceInSui || 0;
-                    const avgEntryUsd = avgEntrySUI * suiUsdPrice;
-
-                    // Position values
-                    const currentValueSUI = readableAmount * currentPriceSUI;
-                    const totalCostSUI = avgEntrySUI * readableAmount;
-
-                    // Convert to USD
-                    const currentValueUSD = currentValueSUI * suiUsdPrice;
-                    const totalCostUSD = totalCostSUI * suiUsdPrice;
-
-                    // PnL Calculations
-                    const pnlUsd = currentValueUSD - totalCostUSD;
-                    const pnlPercent = avgEntrySUI > 0 ? ((currentPriceSUI - avgEntrySUI) / avgEntrySUI) * 100 : 0;
-
-                    const result = {
-                        coinType,
-                        name: metadata.name,
-                        symbol: metadata.symbol,
-                        decimals: metadata.decimals,
-                        rawBalance: totalBalance,
-                        readableBalance: readableAmount,
-                        avgEntrySUI,
-                        avgEntryUsd,
-                        currentPriceSUI,
-                        totalCostSUI,
-                        totalCostUSD,
-                        valueSUI: currentValueSUI,
-                        valueUSD: currentValueUSD,
-                        pnlUsd,
-                        pnlPercent,
-                        tokenInfo
-                    };
-                    return result;
-                } catch (err) {
-                    return null;
+        filteredBalances.map(async ({ coinType, totalBalance }) => {
+            try {
+                // Use cached metadata
+                let metadata = metadataCache[coinType];
+                if (!metadata) {
+                    metadata = await client.getCoinMetadata({ coinType });
+                    metadataCache[coinType] = metadata;
                 }
-            })
-    );
 
+                const readableAmount = Number(totalBalance) / 10 ** (metadata.decimals || 9);
+
+                // 🆕 Try to get price from Blockberry first
+                let tokenInfo = {};
+                let currentPriceSUI = 0;
+
+                const blockberryToken = blockberryData.find(
+                    token => token.coinType?.toLowerCase() === coinType.toLowerCase()
+                );
+
+                if (blockberryToken && suiUsdPriceFromApi > 0) {
+                    // Calculate price in SUI terms using Blockberry data
+                    const tokenUsdPrice = blockberryToken.coinPrice;
+                    currentPriceSUI = tokenUsdPrice / suiUsdPriceFromApi;
+
+                    tokenInfo = {
+                        ...blockberryToken,
+                        priceInSui: currentPriceSUI,
+                        priceInUSD: tokenUsdPrice,
+                        suiUsdPrice: suiUsdPriceFromApi,
+                        source: 'blockberry'
+                    };
+                } else {
+                    // Fallback to your existing method
+                    let fallbackDetails = fallbackCache[coinType];
+                    if (!fallbackDetails) {
+                        fallbackDetails = await getFallbackTokenDetails(coinType, walletAddress);
+                        fallbackCache[coinType] = fallbackDetails;
+                    }
+
+                    tokenInfo = fallbackDetails?.tokenInfo || {};
+                    currentPriceSUI = tokenInfo.priceInSui || 0;
+                    tokenInfo.source = 'fallback';
+                }
+
+                const stored = Array.isArray(userPositions)
+                    ? userPositions.find(p => p.tokenAddress.toLowerCase() === coinType.toLowerCase())
+                    : null;
+
+                const avgEntrySUI = stored?.avgPriceSUI || 0;
+                const avgEntryUsd = avgEntrySUI * suiUsdPriceFromApi;
+
+                const currentValueSUI = readableAmount * currentPriceSUI;
+                const totalCostSUI = avgEntrySUI * readableAmount;
+
+                const currentValueUSD = currentValueSUI * suiUsdPriceFromApi;
+                const totalCostUSD = totalCostSUI * suiUsdPriceFromApi;
+
+                const pnlUsd = currentValueUSD - totalCostUSD;
+                const pnlPercent = avgEntrySUI > 0
+                    ? ((currentPriceSUI - avgEntrySUI) / avgEntrySUI) * 100
+                    : 0;
+
+                return {
+                    coinType,
+                    tokenAddress: coinType, // Add this for consistency
+                    name: metadata.name,
+                    symbol: metadata.symbol,
+                    decimals: metadata.decimals,
+                    rawBalance: totalBalance,
+                    readableBalance: readableAmount,
+                    avgEntrySUI,
+                    avgEntryUsd,
+                    currentPriceSUI,
+                    totalCostSUI,
+                    totalCostUSD,
+                    valueSUI: currentValueSUI,
+                    valueUSD: currentValueUSD,
+                    pnlUsd,
+                    pnlPercent,
+                    tokenInfo
+                };
+            } catch (err) {
+                console.warn(`⚠️ Failed to fetch details for ${coinType}`, err);
+                return null;
+            }
+        })
+    );
     return tokenPositions.filter(Boolean);
 };
 

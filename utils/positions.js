@@ -23,35 +23,63 @@ export async function getValidPositions(userId, walletAddress) {
 }
 
 export function formatPositionSummary(pos, tokenInfo, tokenAmount, suiUsdPrice) {
-    const currentPrice = parseFloat(tokenInfo.price);
-    const marketCap = parseFloat(tokenInfo.marketCap || 0);
-    const currentValue = tokenAmount * currentPrice;
-    const currentValueSui = suiUsdPrice > 0 ? currentValue / suiUsdPrice : 0;
-    const pnlValue = currentValue - (pos.totalCostSUI || 0);
+    // const currentPrice = parseFloat(tokenInfo.price);
+    // const currentValue = tokenAmount * currentPrice;
+    // const currentValueSui = suiUsdPrice > 0 ? currentValue / suiUsdPrice : 0;
+    // const pnlValue = currentValue - (pos.totalCostSUI || 0);
 
-    let rawPnlPercent = 0;
-    if (pos.avgPriceSUI > 0) {
-        rawPnlPercent = ((tokenInfo.priceInSui - pos.avgPriceSUI) / pos.avgPriceSUI) * 100;
-    }
+    const currentValueSUI = pos.valueSUI || 0;
+    const currentValueUSD = pos.valueUSD || 0;
+    const currentPriceSUI = pos.currentPriceSUI || 0;
+    const currentPriceUSD = tokenInfo?.priceInUSD || (currentPriceSUI * suiUsdPrice);
+    const marketCap = parseFloat(tokenInfo.marketCap ?? 0);
 
+    // Use already calculated PnL values
+    const pnlUSD = pos.pnlUsd || 0;
+    const pnlPercent = pos.pnlPercent || 0;
+
+    // Cap percentage to prevent absurd numbers
     const cappedPnlPercent = Math.min(rawPnlPercent, 9999);
     const pnlEmoji = rawPnlPercent >= 0 ? "🟩" : "🟥";
+
+    // Token address & line
     const tokenAddress = pos.tokenAddress || pos.coinType || "";
-    const tokenLine = `$${pos.symbol} - ${currentValueSui.toFixed(2)} SUI ($${currentValue.toFixed(2)})`;
+    const tokenLine = `$${pos.symbol} - ${currentValueSUI.toFixed(2)} SUI ($${currentValueUSD.toFixed(2)})`;
+
+    // let rawPnlPercent = 0;
+    // if (pos.avgPriceSUI > 0) {
+    // rawPnlPercent = ((tokenInfo.priceInSui - pos.avgPriceSUI) / pos.avgPriceSUI) * 100;
+    // }
+
     let msg = `${tokenLine}\n`;
-    msg += `<code>${tokenInfo.address}</code>\n`;
+    // msg += `<code>${tokenInfo.address}</code>\n`;
+    msg += `<code>${tokenAddress}</code>\n`;
 
-    msg += `• Price & MC: <b>${formatTinyPrice(currentPrice)} — ${formatMarketCap(marketCap)}</b>\n`;
+    msg += `• Price & MC: <b>${formatTinyPrice(currentPriceUSD)} — ${formatMarketCap(marketCap)}</b>\n`;
 
-    if (pos.avgPriceSUI > 0) {
-        const avgTotalUsd = (pos.avgPriceSUI * tokenAmount) * suiUsdPrice;
-        msg += `• Avg Entry: <b>${formatTinyPrice(pos.avgPriceSUI)} — ${formatMarketCap(avgTotalUsd)}</b>\n`;
+    // if (pos.avgPriceSUI > 0) {
+    //     const avgTotalUsd = (pos.avgPriceSUI * tokenAmount) * suiUsdPrice;
+    //     msg += `• Avg Entry: <b>${formatTinyPrice(pos.avgPriceSUI)} — ${formatMarketCap(avgTotalUsd)}</b>\n`;
+    // }
+
+    // Avg entry line (use already calculated values)
+    if (pos.avgEntrySUI > 0) {
+        const avgEntryUSD = pos.avgEntryUsd || 0;
+        msg += `• Avg Entry: <b>${formatTinyPrice(pos.avgEntrySUI)} SUI (${formatTinyPrice(avgEntryUSD)})</b>\n`;
     }
 
-    msg += `• Balance: <b>${formatTokenBalance(tokenAmount)} $${pos.symbol}</b>\n\n`;
+    // msg += `• Balance: <b>${formatTokenBalance(tokenAmount)} $${pos.symbol}</b>\n\n`;
+    msg += `• Balance: <b>${formatTokenBalance(pos.readableBalance)} $${pos.symbol}</b>\n\n`;
 
-    if (pos.avgPriceSUI > 0) {
-        msg += `• PnL: <b>${cappedPnlPercent.toFixed(2)}% (${pnlValue >= 0 ? '+' : ''}$${pnlValue.toFixed(2)}) ${pnlEmoji}</b>\n\n`;
+    // if (pos.avgPriceSUI > 0) {
+    //     msg += `• PnL: <b>${cappedPnlPercent.toFixed(2)}% (${pnlValue >= 0 ? '+' : ''}$${pnlValue.toFixed(2)}) ${pnlEmoji}</b>\n\n`;
+    // }
+    
+    // PnL line (show only if avg entry exists)
+    if (pos.avgEntrySUI > 0) {
+        // Show $0 for tiny PnL values
+        const displayPnlUSD = Math.abs(pnlUSD) < 0.01 ? 0 : pnlUSD;
+        msg += `• PnL: <b>${cappedPnlPercent.toFixed(2)}% (${displayPnlUSD >= 0 ? '+' : ''}$${displayPnlUSD.toFixed(2)}) ${pnlEmoji}</b>\n\n`;
     }
 
     return msg;

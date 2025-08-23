@@ -23,18 +23,27 @@ export const handleViewPosition = async (ctx, action) => {
             (w) => (w.walletAddress || w.address) === walletAddress
         );
 
-        const suiUsdPrice = await getSuiUsdPrice(walletAddress).then(p => p || 0);
+        const [suiUsdPriceRaw, suiBalanceResult] = await Promise.all([
+            getSuiUsdPrice(walletAddress),
+            getBalance(walletAddress)
+        ]);
+
+        const suiUsdPrice = suiUsdPriceRaw || 0;
+        const suiBalance = suiBalanceResult?.sui || 0;
+        const suiBalanceUssd = suiBalanceResult?.usd || 0;
+
+        // const suiUsdPrice = await getSuiUsdPrice(walletAddress).then(p => p || 0);
         const tokenPositions = await getTokenPositions(userId, walletAddress, suiUsdPrice);
 
         if (!Array.isArray(tokenPositions)) {
             return ctx.reply("⚠️ Failed to load token positions.");
         }
 
-        const suiBalanceResult = await getBalance(walletAddress);
-        const suiBalance = suiBalanceResult.sui;
-        const suiBalanceUsd = suiBalance * suiUsdPrice;
+        // const suiBalanceResult = await getBalance(walletAddress);
+        // const suiBalance = suiBalanceResult.sui;
+        // const suiBalanceUsd = suiBalance * suiUsdPrice;
 
-        let message = `💳 Wallet balance: <b>${suiBalance.toFixed(3)} SUI ($${suiBalanceUsd.toFixed(3)})</b>\n\n`;
+        let message = `💳 Wallet balance: <b>${suiBalance.toFixed(3)} SUI ($${suiBalanceUssd.toFixed(3)})</b>\n\n`;
 
         const positions = tokenPositions.filter(t => t.symbol !== "SUI");
 

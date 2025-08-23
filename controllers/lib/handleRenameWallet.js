@@ -37,9 +37,9 @@ export async function handleRenameWallet(ctx) {
     const balance = balanceResult?.sui || "0";
 
     // Escape all user-controlled values
-    const escapedBalance = escapeMarkdownV2(balance);
-    const escapedName = escapeMarkdownV2(wallet.name || "Unnamed");
-    const escapedAddress = escapeMarkdownV2(wallet.walletAddress);
+    const escapedBalance = escapeMarkdownV2(String(balance));
+    const escapedName = escapeMarkdownV2(String(wallet.name || "Unnamed"));
+    const escapedAddress = escapeMarkdownV2(String(wallet.walletAddress));
 
     const displayText =
         `💰 *Balance:* ${escapedBalance} SUI\n\n` +
@@ -65,7 +65,7 @@ export async function handleRenameWallet(ctx) {
             await ctx.telegram.deleteMessage(ctx.chat.id, step.promptMessageId);
         }
     } catch (error) {
-        const fallbackText = `✅ Wallet renamed to *${escapeMarkdownV2(newName)}*`;
+        const fallbackText = `✅ Wallet renamed to *${escapeMarkdownV2(String(newName))}*`;
         await ctx.reply(fallbackText, {
             parse_mode: "MarkdownV2",
             disable_web_page_preview: true,

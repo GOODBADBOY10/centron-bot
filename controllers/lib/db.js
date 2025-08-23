@@ -377,7 +377,7 @@ export async function saveOrUpdatePosition(userId, walletAddress, tokenInfo) {
         symbol,
         amountBought,
         amountInSUI,
-        decimals = 9
+        decimals
     } = tokenInfo;
 
     const humanAmount = amountBought;
@@ -401,6 +401,22 @@ export async function saveOrUpdatePosition(userId, walletAddress, tokenInfo) {
 
     const walletPositions = positionsByWallet[walletKey] || [];
     const index = walletPositions.findIndex(p => p.tokenAddress === tokenAddress);
+    // const existing = index !== -1 ? walletPositions[index] : null;
+
+    // let finalDecimals = decimals;
+
+    // if (existing && existing.decimals !== undefined) {
+    //     // Use decimals from existing position for consistency
+    //     finalDecimals = existing.decimals;
+
+    //     // If decimals changed, we might need to re-convert amountBought
+    //     if (finalDecimals !== decimals && amountBought > 1000000) {
+    //         // Reverse the wrong conversion and apply correct one
+    //         const rawAmount = amountBought * (10 ** decimals); // Get back to raw
+    //         humanAmount = rawAmount / (10 ** finalDecimals);   // Convert with correct decimals
+    //     }
+    // } else {
+    // }
 
     if (index !== -1) {
         const existing = walletPositions[index];
@@ -413,6 +429,8 @@ export async function saveOrUpdatePosition(userId, walletAddress, tokenInfo) {
             totalAmount: updatedAmount,
             totalCostSUI: updatedCost,
             avgPriceSUI: avgPrice,
+            decimals,
+            // decimals: finalDecimals,
             lastUpdated: Date.now(),
             txHistory: [...(existing.txHistory || []), newTx]
         };

@@ -1,5 +1,5 @@
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { getUserTokenDetails } from './getCoinDetails.js';
+import { getUserTokenDetailsB } from './getCoinDetails.js';
 
 const client = new SuiClient({
   url: getFullnodeUrl('mainnet'),
@@ -131,11 +131,18 @@ export async function getFallbackTokenDetails(tokenAddress, walletAddress, optio
   }
 
   // Helper to wrap with timeout
-  const safeFetch = (fn, name, timeout = 4000) =>
-    withTimeout(fn(), timeout).catch(err => {
-      console.log(`${name} failed:`, err.message || err);
-      throw err; // important for Promise.any to skip failed ones
-    });
+  const safeFetch = (fn, name, timeout = 15000) =>
+    withTimeout(fn(), timeout)
+      .then(res => {
+        if (!res || (Array.isArray(res) && res.length === 0)) {
+          throw new Error(`${name} returned empty result`);
+        }
+        return res;
+      })
+      .catch(err => {
+        console.log(`${name} failed:`, err.message || err);
+        throw err; // important so Promise.any skips it
+      });
 
   try {
     // Run both in parallel and take whichever succeeds first
@@ -338,7 +345,7 @@ export const getTokenPriceSui = async (token) => {
 }
 
 export const getCoinBalance = async (address, coinType = '0x2::sui::SUI') => {
-  const details = await getUserTokenDetails(address, coinType)
+  const details = await getUserTokenDetailsB(address, coinType)
   if (details === null) {
     return ({ balance: 0, balanceUsd: 0, decimals: 0 });
   } else {
