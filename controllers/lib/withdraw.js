@@ -87,8 +87,7 @@ export const handleConfirmWithdraw = async (ctx) => {
         } else {
             await ctx.editMessageText(
                 `✅ SUI Sent Successfully!\n\n` +
-                `🔗 [View Transaction Record on Explorer](https://suiscan.xyz/mainnet/tx${txDigest})`,
-                // `🔗 [View Transaction Record on Explorer](https://suivision.xyz/txblock/${txDigest}?network=mainnet)`,
+                `🔗 [View Transaction Record on Explorer](https://suiscan.xyz/mainnet/tx${txDigest.digest})`,
                 {
                     parse_mode: "Markdown",
                     disable_web_page_preview: true,
