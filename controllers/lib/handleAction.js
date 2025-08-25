@@ -1,4 +1,5 @@
 import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/aftermath.js";
+import { formatMarketCapValue } from "../mcap/formatMarketCap.js";
 import { generateQRCode } from "../qrcode/genQr.js";
 import { handleWithdrawTokenAmount, handleWithdrawTokens } from "../tokens/withdrawToken.js";
 import { handleBuySlippage, handleSellSlippage } from "./buySlippage.js";
@@ -468,8 +469,11 @@ export async function handleAction(ctx, action, userId) {
                             triggerValue: step.limitTriggerValue,
                             slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
                         });
+                        const formattedTrigger = formatMarketCapValue(step.limitTriggerValue);
 
-                        results.push(`✅ ${wallet.name || shortAddress(address)}: Limit ${mode} order saved.`);
+                        results.push(
+                            `✅ Limit ${mode} order saved for ${amount} ${mode === "buy" ? " SUI" : "%"} and will trigger at <b>$${formattedTrigger} market cap</b>`
+                        );
                     } else if (isMarketOrder) {
                         const result = mode === "buy"
                             ? await buyTokenWithAftermath({ tokenAddress: step.tokenAddress, phrase, suiAmount, slippage: step.buySlippage })

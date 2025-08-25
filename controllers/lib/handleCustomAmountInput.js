@@ -5,6 +5,7 @@ import { decryptWallet } from "./generateWallet.js";
 import { formatNumber, removeUndefined } from "./handleAction.js";
 import { toSmallestUnit } from "./suiAmount.js";
 import { shortAddress } from "./shortAddress.js";
+import { formatMarketCapValue } from "../mcap/formatMarketCap.js"
 
 export async function handleCustomAmountInput(ctx, step, userId) {
     const amount = parseFloat(ctx.message.text);
@@ -26,7 +27,8 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         }
 
         const suiAmount = mode === 'buy' ? toSmallestUnit(amount) : null;
-        const suiPercentage = mode === 'sell' ? Math.floor(amount, 10) : null;
+        // const suiPercentage = mode === 'sell' ? Math.floor(amount, 10) : null;
+        const suiPercentage = mode === 'sell' ? parseInt(amount, 10) : null;
 
         await savePendingLimitOrder({
             userId,
@@ -46,8 +48,8 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             orderMode: null,
             limitTriggerValue: null,
         });
-
-        return ctx.reply(`✅ Limit ${mode} order saved for ${amount}${mode === "buy" ? " SUI" : "%"}.\n📊 Will trigger at: <b>$${triggerValue}</b>`, {
+        
+        return ctx.reply(`✅ Limit ${mode} order saved for <b>${amount}</b> ${mode === "buy" ? " SUI" : "%"} and will trigger at <b>$${formatMarketCapValue(triggerValue)} market cap</b>`, {
             parse_mode: "HTML"
         });
     }
