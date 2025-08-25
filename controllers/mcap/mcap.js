@@ -68,7 +68,7 @@ export async function checkPendingMcapOrders() {
             const mcapFormatted = formatPrice(currentMcap);
             await bot.telegram.sendMessage(
                 order.userId,
-                `✅ Limit ${order.mode.toUpperCase()} executed at 🏦 Market Cap: ${mcapFormatted}`
+                `✅ Limit ${order.mode} order successfully executed at ${mcapFormatted} market cap.`
             );
         } catch (err) {
             console.error(`❌ Error processing order ${order.id}:`, err);
