@@ -60,7 +60,7 @@ export const handleViewPosition = async (ctx, action) => {
                 p.readableBalance,
                 suiUsdPrice 
             );
-            message += pnlText + "\n";
+
         }
         const totalSUI = positions.reduce((sum, p) => sum + (p.valueSUI || 0), 0);
         const totalUSD = positions.reduce((sum, p) => sum + (p.valueUSD || 0), 0);
