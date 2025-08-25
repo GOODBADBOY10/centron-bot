@@ -148,7 +148,7 @@ export async function handleExecuteTokenWithdraw(ctx, step, toAddress) {
         );
 
     } catch (err) {
-        return ctx.reply(`❌ Failed to send ${step.tokenType}:\n${err.message || err}`);
+        return ctx.reply(`❌ Failed to send ${step.tokenType} Please try again later.`);
     }
 }
 

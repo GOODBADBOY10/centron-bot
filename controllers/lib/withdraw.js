@@ -5,7 +5,7 @@ import { decryptWallet } from "./generateWallet.js";
 export const handleWithdrawSui = async (ctx, action) => {
     const index = Number(action.split("_").pop());
     const userId = ctx.from.id.toString();
-    const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET;
+    // const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET;
 
     const user = await fetchUser(userId);
     const selectedWallet = user.wallets?.[index];
@@ -22,30 +22,30 @@ export const handleWithdrawSui = async (ctx, action) => {
         tokenType: "SUI",
     };
 
-    try {
-        const encrypted = selectedWallet.seedPhrase || selectedWallet.privateKey;
-        const decrypted = decryptWallet(encrypted, ENCRYPTION_SECRET);
-        let phraseOrKey;
-        if (typeof decrypted === "string") {
-            phraseOrKey = decrypted;
-        } else if (decrypted && typeof decrypted === "object") {
-            phraseOrKey = decrypted.privateKey || decrypted.seedPhrase;
-        }
+    // try {
+    //     const encrypted = selectedWallet.seedPhrase || selectedWallet.privateKey;
+    //     const decrypted = decryptWallet(encrypted, ENCRYPTION_SECRET);
+    //     let phraseOrKey;
+    //     if (typeof decrypted === "string") {
+    //         phraseOrKey = decrypted;
+    //     } else if (decrypted && typeof decrypted === "object") {
+    //         phraseOrKey = decrypted.privateKey || decrypted.seedPhrase;
+    //     }
 
-        if (!phraseOrKey) {
-            await ctx.answerCbQuery("❌ Failed to decrypt wallet.", { show_alert: true });
-            return;
-        }
+    //     if (!phraseOrKey) {
+    //         await ctx.answerCbQuery("❌ Failed to decrypt wallet.", { show_alert: true });
+    //         return;
+    //     }
 
-        if (selectedWallet.seedPhrase) {
-            step.seedPhrase = phraseOrKey;
-        } else {
-            step.privateKey = phraseOrKey;
-        }
-    } catch (err) {
-        await ctx.answerCbQuery("❌ Failed to decrypt wallet.", { show_alert: true });
-        return;
-    }
+    //     if (selectedWallet.seedPhrase) {
+    //         step.seedPhrase = phraseOrKey;
+    //     } else {
+    //         step.privateKey = phraseOrKey;
+    //     }
+    // } catch (err) {
+    //     await ctx.answerCbQuery("❌ Failed to decrypt wallet.", { show_alert: true });
+    //     return;
+    // }
 
     await saveUserStep(userId, step);
 
@@ -66,20 +66,61 @@ export const handleWithdrawSui = async (ctx, action) => {
 
 
 export const handleConfirmWithdraw = async (ctx) => {
-    const userId = ctx.from.id;
+    // const userId = ctx.from.id;
+    const userId = ctx.from.id.toString();
     const step = await fetchUserStep(userId);
 
+    // if (
+    //     !step?.withdrawAddress ||
+    //     !step?.amount ||
+    //     !step?.walletAddress ||
+    //     (!step?.seedPhrase && !step?.privateKey)
+    // ) {
+    //     return ctx.answerCbQuery("❌ Missing withdrawal data", { show_alert: true });
+    // }
     if (
         !step?.withdrawAddress ||
         !step?.amount ||
-        !step?.walletAddress ||
-        (!step?.seedPhrase && !step?.privateKey)
+        step.selectedWalletIndex === undefined
     ) {
         return ctx.answerCbQuery("❌ Missing withdrawal data", { show_alert: true });
     }
 
+    let key;
+    try {
+        // fetch wallet again
+        const user = await fetchUser(userId);
+        const selectedWallet = user.wallets?.[step.selectedWalletIndex];
+        if (!selectedWallet) {
+            await ctx.editMessageText("❌ Wallet not found.");
+            return;
+        }
+        const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET;
+        const encrypted = selectedWallet.seedPhrase || selectedWallet.privateKey;
+        const decrypted = decryptWallet(encrypted, ENCRYPTION_SECRET);
+        if (typeof decrypted === "string") {
+            key = decrypted;
+        } else if (decrypted && typeof decrypted === "object") {
+            key = decrypted.privateKey || decrypted.seedPhrase;
+        }
+
+        if (!key) {
+            await ctx.answerCbQuery("❌ Failed to decrypt wallet.", { show_alert: true });
+            return;
+        }
+
+        // if (selectedWallet.seedPhrase) {
+        //     step.seedPhrase = key;
+        // } else {
+        //     step.privateKey = key;
+        // }
+    } catch (err) {
+        await ctx.answerCbQuery("❌ Failed to decrypt wallet.", { show_alert: true });
+        return;
+    }
+
     await ctx.editMessageText("⏳Sending SUI...Please wait.");
-    const key = step.seedPhrase || step.privateKey;
+    // const key = step.seedPhrase || step.privateKey;
     try {
         const txDigest = await sendSui(key, step.withdrawAddress, step.amount);
         if (!txDigest) {

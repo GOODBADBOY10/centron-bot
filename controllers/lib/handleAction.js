@@ -471,15 +471,15 @@ export async function handleAction(ctx, action, userId) {
 
                         results.push(`✅ ${wallet.name || shortAddress(address)}: Limit ${mode} order saved.`);
                     } else if (isMarketOrder) {
-                        await ctx.reply(`⏳ Executing ${mode} order for ${selectedWallets.length} wallet(s)...`);
                         const result = mode === "buy"
                             ? await buyTokenWithAftermath({ tokenAddress: step.tokenAddress, phrase, suiAmount, slippage: step.buySlippage })
                             : await sellTokenWithAftermath({ tokenAddress: step.tokenAddress, phrase, suiPercentage, slippage: step.sellSlippage });
 
                         if (!result) throw new Error("No result returned");
+                        const decimals = result.decimals ?? 9;
                         if (mode === "buy") {
                             const rawAmount = result.tokenAmountReceived;
-                            const decimals = result.decimals ?? 9;
+                            // const decimals = result.decimals ?? 9;
                             const humanAmount = rawAmount / (10 ** decimals);
 
                             await saveOrUpdatePosition(userId, address, removeUndefined({
@@ -492,7 +492,8 @@ export async function handleAction(ctx, action, userId) {
                         }
                         const txLink = `https://suiscan.xyz/mainnet/tx/${result.transactionDigest}`;
                         const walletLink = `https://suiscan.xyz/mainnet/account/${address}`;
-                        const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
+                        const tokenAmountReadable = Number(result.tokenAmountSold) / (10 ** decimals);
+                        // const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
                         results.push(
                             `<a href="${walletLink}">${wallet.name || shortAddress(address)}</a> ✅ ${mode === "buy"
                                 ? `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}`
@@ -502,17 +503,19 @@ export async function handleAction(ctx, action, userId) {
                     }
 
                 } catch (err) {
-                    results.push(`❌ ${wallet.name || shortAddress(address)}: ${err.message || err}`);
+                    const msg = typeof err?.message === "string" ? err.message : "Unknown error";
+                    results.push(`❌ ${wallet.name || shortAddress(address)}: ${msg}`);
                 }
             }
             // Clear state after
-            await saveUserStep(userId, {
-                ...step,
-                state: null,
-                currentFlow: null,
-                orderMode: null,
-                limitTriggerValue: null,
-            });
+            await saveUserStep(userId, { userId, state: null });
+            // await saveUserStep(userId, {
+            // ...step,
+            // state: null,
+            // currentFlow: null,
+            // orderMode: null,
+            // limitTriggerValue: null,
+            // });
             await ctx.reply(results.join("\n\n"), { parse_mode: "HTML" });
             return ctx.answerCbQuery();
         }
