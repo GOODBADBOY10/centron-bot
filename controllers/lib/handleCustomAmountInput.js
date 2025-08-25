@@ -49,7 +49,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             limitTriggerValue: null,
         });
         
-        return ctx.reply(`✅ Limit ${mode} order saved for <b>${amount}</b> ${mode === "buy" ? " SUI" : "%"} and will trigger at <b>$${formatMarketCapValue(triggerValue)} market cap</b>`, {
+        return ctx.reply(`✅ Limit ${mode} order saved for <b>${amount}${mode === "buy" ? " SUI" : "%"}</b>and will trigger at <b>$${formatMarketCapValue(triggerValue)}</b>market cap.`, {
             parse_mode: "HTML"
         });
     }

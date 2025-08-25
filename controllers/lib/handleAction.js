@@ -472,7 +472,7 @@ export async function handleAction(ctx, action, userId) {
                         const formattedTrigger = formatMarketCapValue(step.limitTriggerValue);
 
                         results.push(
-                            `✅ Limit ${mode} order saved for ${amount} ${mode === "buy" ? " SUI" : "%"} and will trigger at <b>$${formattedTrigger} market cap</b>`
+                            `✅ Limit ${mode} order saved for <b>${amount}${mode === "buy" ? " SUI" : "%"}</b>and will trigger at <b>$${formattedTrigger}</b>market cap.`
                         );
                     } else if (isMarketOrder) {
                         const result = mode === "buy"
