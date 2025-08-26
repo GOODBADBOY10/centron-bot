@@ -5,6 +5,17 @@ import { saveUserStep, fetchUser } from "./db.js";
 import { getBalance } from "./getBalance.js";
 import { getTokenPositions } from "./showWalletsForPositions.js";
 
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== "string") return "";
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
 export const handleViewPosition = async (ctx, action) => {
     const userId = ctx.from.id.toString();
     const index = action.replace("view_pos_idx_", "");
