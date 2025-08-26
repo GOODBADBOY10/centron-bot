@@ -119,7 +119,7 @@ export function formatPositionSummary(pos, tokenInfo, tokenAmount, suiUsdPrice) 
         msg += `• Avg Entry: <b>${formatTinyPrice(pos.avgEntrySUI)} SUI (${formatTinyPrice(avgEntryUSD)})</b>\n`;
     }
 
-    msg += `• Balance: <b>${formatTokenBalance(pos.readableBalance)} $${pos.symbol}</b>\n\n`;
+    msg += `• Balance: <b>${formatTokenBalance(pos.readableBalance)} $${pos.symbol}</b>\n`;
 
     if (pos.avgEntrySUI > 0) {
         // Show $0 for tiny PnL values

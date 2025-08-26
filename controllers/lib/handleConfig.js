@@ -18,7 +18,7 @@ export async function handleConfig(ctx, userId) {
         await ctx.editMessageText("⚙ Settings", configMenu);
     } catch (error) {
         if (error.description?.includes("message can't be edited")) {
-            await ctx.reply("📍 *Settings*", configMenu);
+            await ctx.reply("⚙ Settings", configMenu);
         } else {
             throw error;
         }
