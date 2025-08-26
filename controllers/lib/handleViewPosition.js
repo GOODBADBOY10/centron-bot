@@ -42,6 +42,23 @@ export const handleViewPosition = async (ctx, action) => {
         }
 
         const positions = tokenPositions.filter(t => t.symbol !== "SUI");
+        if (!positions.length) {
+            const displayAddress = walletAddress.slice(0, 6) + "..." + walletAddress.slice(-4);
+            const label = walletObj?.name || displayAddress;
+            const labelSafe = escapeHtml(label);
+            const explorerUrl = `https://suivision.xyz/account/${walletAddress}`;
+            const labelLink = `<a href="${explorerUrl}">${labelSafe}</a>`;
+
+            return ctx.editMessageText(`${labelLink} You do not have any token positions.`, {
+                parse_mode: "HTML",
+                disable_web_page_preview: true,
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: "← Choose another wallet", callback_data: "back_to_positions_wallets" }]
+                    ]
+                }
+            });
+        }
         const shortTokenMap = {};
         const orderedTokenAddrs = [];
 
@@ -58,7 +75,7 @@ export const handleViewPosition = async (ctx, action) => {
                 p,
                 p.tokenInfo,
                 p.readableBalance,
-                suiUsdPrice 
+                suiUsdPrice
             );
 
         }
@@ -93,24 +110,6 @@ export const handleViewPosition = async (ctx, action) => {
                 { text: "🔄 Refresh", callback_data: `refresh_position_idx_${index}` },
             ]
         ];
-
-        if (!positions.length) {
-            const displayAddress = walletAddress.slice(0, 6) + "..." + walletAddress.slice(-4);
-            const label = walletObj?.name || displayAddress;
-            const labelSafe = escapeHtml(label);
-            const explorerUrl = `https://suivision.xyz/account/${walletAddress}`;
-            const labelLink = `<a href="${explorerUrl}">${labelSafe}</a>`;
-
-            return ctx.editMessageText(`${labelLink} You do not have any token positions.`, {
-                parse_mode: "HTML",
-                disable_web_page_preview: true,
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: "← Choose another wallet", callback_data: "back_to_positions_wallets" }]
-                    ]
-                }
-            });
-        }
 
         return ctx.editMessageText(message, {
             parse_mode: "HTML",
