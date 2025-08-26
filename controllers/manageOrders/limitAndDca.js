@@ -1,5 +1,4 @@
 // fetch order
-
 async function getUserOrders(userId) {
     const user = await fetchUser(userId);
     if (!user) {
@@ -10,7 +9,6 @@ async function getUserOrders(userId) {
     const limitOrders = user.limitOrders || [];
     const dcaOrders = user.dcaOrders || [];
 
-    console.log("📌 User Orders:");
     console.log(`- Limit Orders (${limitOrders.length}):`, limitOrders);
     console.log(`- DCA Orders (${dcaOrders.length}):`, dcaOrders);
 
