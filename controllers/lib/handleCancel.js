@@ -1,5 +1,5 @@
-import { clearUserStep, fetchUserStep } from "./db";
-import { mainMenu } from "./mainMenu";
+import { clearUserStep, fetchUserStep } from "./db.js";
+import { mainMenu } from "./mainMenu.js";
 
 export async function handleCancel(ctx, userId) {
     try {
