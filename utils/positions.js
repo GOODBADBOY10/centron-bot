@@ -109,7 +109,7 @@ export function formatPositionSummary(pos, tokenInfo, tokenAmount, suiUsdPrice) 
     const tokenLine = `$${pos.symbol} - ${currentValueSUI.toFixed(2)} SUI ($${currentValueUSD.toFixed(2)})`;
 
     let msg = `${tokenLine}\n`;
-    msg += `<code>${tokenAddress}</code>\n`;
+    msg += `<code>${tokenAddress}</code>\n\n`;
 
     msg += `• Price & MC: <b>${formatTinyPrice(currentPriceUSD)} — ${formatMarketCap(marketCap)}</b>\n`;
 
