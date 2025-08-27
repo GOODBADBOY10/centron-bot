@@ -486,12 +486,15 @@ export async function handleAction(ctx, action, userId) {
                             // const decimals = result.decimals ?? 9;
                             const humanAmount = rawAmount / (10 ** decimals);
 
+                            const tokenInfo = await getFallbackTokenDetails(result.tokenAddress, address);
+                            
                             await saveOrUpdatePosition(userId, address, removeUndefined({
                                 tokenAddress: result.tokenAddress,
                                 symbol: result.tokenSymbol,
                                 amountBought: humanAmount,
                                 amountInSUI: result.spentSUI,
                                 decimals: decimals
+                                marketCap: tokenInfo?.tokenInfo?.marketCap ?? null,
                             }));
                         }
                         const txLink = `https://suiscan.xyz/mainnet/tx/${result.transactionDigest}`;

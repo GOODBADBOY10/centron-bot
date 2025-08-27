@@ -157,6 +157,11 @@ export async function getFallbackTokenDetails(tokenAddress, walletAddress, optio
 
     let tokenInfo = Array.isArray(result) ? result[0] : result;
     let source = result?.source ?? (result?.coinMetadata ? "Insidex" : "Dexscreener");
+    
+    // Add this: check if marketCap exists from the API
+    if (tokenInfo) {
+      tokenInfo.marketCap = tokenInfo.marketCap ?? result?.fdv ?? null;
+    }
 
     // If no token info found
     if (!tokenInfo) return { tokenInfo: null, source: null };
