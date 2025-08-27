@@ -16,15 +16,15 @@ async function getUserOrders(userId) {
 }
 
 
-async function getUserOrders(userId) {
-    const user = await fetchUser(userId);
-    if (!user) return { limitOrders: [], dcaOrders: [] };
+// async function getUserOrders(userId) {
+//     const user = await fetchUser(userId);
+//     if (!user) return { limitOrders: [], dcaOrders: [] };
 
-    return {
-        limitOrders: user.limitOrders || [],
-        dcaOrders: user.dcaOrders || []
-    };
-}
+//     return {
+//         limitOrders: user.limitOrders || [],
+//         dcaOrders: user.dcaOrders || []
+//     };
+// }
 
 
 // format order
@@ -35,12 +35,13 @@ function formatLimitOrder(order, index, walletName, tokenSymbol) {
             : `${order.suiPercentage}%`;
 
     return (
-        `${index + 1}. ${order.mode.toUpperCase()} ${amount} of ${tokenSymbol}\n` +
-        `   Wallet: ${walletName}\n` +
-        `   Trigger: $${formatMarketCapValue(order.triggerValue)}\n` +
-        `   Slippage: ${order.slippage}%\n`
+        `#${index + 1} 📈 <b>${order.mode.toUpperCase()}</b> ${amount} of ${tokenSymbol}\n` +
+        `   💼 Wallet: ${walletName}\n` +
+        `   🎯 Trigger: $${formatMarketCapValue(order.triggerValue)}\n` +
+        `   📊 Slippage: ${order.slippage}%\n`
     );
 }
+
 
 function formatDCAOrder(order, index, walletName, tokenSymbol) {
     return (
@@ -97,7 +98,7 @@ export const handleCancelOrder = async (ctx, action) => {
 
     if (action.startsWith("cancel_limit_")) {
         const index = parseInt(action.replace("cancel_limit_", ""), 10);
-        if (limitOrders[index]) {
+        if (!isNaN(index) && limitOrders[index]) {
             limitOrders.splice(index, 1);
             await updateUser(userId, { limitOrders });
             return ctx.editMessageText("✅ Limit order cancelled.", { parse_mode: "HTML" });
@@ -106,10 +107,13 @@ export const handleCancelOrder = async (ctx, action) => {
 
     if (action.startsWith("cancel_dca_")) {
         const index = parseInt(action.replace("cancel_dca_", ""), 10);
-        if (dcaOrders[index]) {
+        if (!isNaN(index) && dcaOrders[index]) {
             dcaOrders.splice(index, 1);
             await updateUser(userId, { dcaOrders });
             return ctx.editMessageText("✅ DCA order cancelled.", { parse_mode: "HTML" });
         }
     }
+
+    return ctx.answerCbQuery("⚠️ Order not found or already cancelled.");
 };
+

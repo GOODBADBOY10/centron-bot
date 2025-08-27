@@ -89,6 +89,11 @@ export const handleViewPosition = async (ctx, action) => {
                 suiUsdPrice
             );
 
+            // Add separator except after last token
+            if (i < positions.length - 1) {
+                 message += "\n";
+            }
+
         }
         const totalSUI = positions.reduce((sum, p) => sum + (p.valueSUI || 0), 0);
         const totalUSD = positions.reduce((sum, p) => sum + (p.valueUSD || 0), 0);
