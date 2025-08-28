@@ -29,10 +29,10 @@ export async function handleWithdrawAmountInput(ctx, step) {
         amount
     });
     return ctx.reply(
-        `🧾 *Confirm Withdrawal*\n\n` +
-        `📤 *From:* \`${step.walletAddress}\`\n\n` +
-        `📥 *To:* \`${step.withdrawAddress}\`\n\n` +
-        `💸 *Amount:* ${amount} SUI\n\n` +
+        `🧾 Confirm Withdrawal\n\n` +
+        `📤 From: \`${step.walletAddress}\`\n\n` +
+        `📥 To: \`${step.withdrawAddress}\`\n\n` +
+        `💸 Amount: ${amount} SUI\n\n` +
         `Do you want to proceed?`,
         {
             parse_mode: "Markdown",

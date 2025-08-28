@@ -32,6 +32,7 @@ import { handleToggleAllWallets, handleToggleMode, handleToggleWallet } from "./
 import { userSteps } from "./userState.js";
 import { handleConfirmDeleteWallet, handleDeleteWalletPrompt, handleRenameWalletPrompt, handleWalletInfo } from "./walletName.js";
 import { handleConfirmWithdraw, handleWithdrawSui } from "./withdraw.js";
+import { getFallbackTokenDetails } from "../../utils/getTokenDetails.js";
 
 export function removeUndefined(obj) {
     return Object.fromEntries(
@@ -493,7 +494,7 @@ export async function handleAction(ctx, action, userId) {
                                 symbol: result.tokenSymbol,
                                 amountBought: humanAmount,
                                 amountInSUI: result.spentSUI,
-                                decimals: decimals
+                                decimals: decimals,
                                 marketCap: tokenInfo?.tokenInfo?.marketCap ?? null,
                             }));
                         }

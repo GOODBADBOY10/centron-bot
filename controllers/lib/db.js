@@ -377,7 +377,8 @@ export async function saveOrUpdatePosition(userId, walletAddress, tokenInfo) {
         symbol,
         amountBought,
         amountInSUI,
-        decimals
+        decimals,
+        marketCap,
     } = tokenInfo;
 
     const humanAmount = amountBought;
@@ -432,6 +433,7 @@ export async function saveOrUpdatePosition(userId, walletAddress, tokenInfo) {
             decimals,
             // decimals: finalDecimals,
             lastUpdated: Date.now(),
+            marketCap: marketCap ?? existing.marketCap ?? null,
             txHistory: [...(existing.txHistory || []), newTx]
         };
 
@@ -445,6 +447,7 @@ export async function saveOrUpdatePosition(userId, walletAddress, tokenInfo) {
             totalCostSUI: amountInSUI,
             avgPriceSUI: price,
             lastUpdated: Date.now(),
+             marketCap: marketCap ?? null,
             txHistory: [newTx]
         });
     }
