@@ -48,15 +48,16 @@ export async function checkPendingMcapOrders() {
                 continue;
             }
 
+            let tx;
             if (order.mode === "buy") {
-                await buyTokenWithAftermath({
+                tx = await buyTokenWithAftermath({
                     tokenAddress: order.tokenAddress,
                     phrase,
                     suiAmount: order.suiAmount,
                     slippage: order.slippage
                 });
             } else {
-                await sellTokenWithAftermath({
+                tx = await sellTokenWithAftermath({
                     tokenAddress: order.tokenAddress,
                     phrase,
                     suiPercentage: order.suiPercentage,
@@ -65,11 +66,28 @@ export async function checkPendingMcapOrders() {
             }
 
             await markOrderAsCompleted(order.id);
-            const mcapFormatted = formatPrice(currentMcap);
-            await bot.telegram.sendMessage(
-                order.userId,
-                `✅ Limit ${order.mode} order successfully executed at ${mcapFormatted} market cap.`
-            );
+            // const mcapFormatted = formatPrice(currentMcap);
+
+            const shortWallet = `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`;
+            const txUrl = `https://suiscan.xyz/mainnet/tx/${tx.transactionDigest}`;
+            const formatNum = (num) => (typeof num === "number" ? num.toFixed(5) : "0");
+
+            let messageText;
+            if (order.mode === "buy") {
+                messageText =
+                    `${shortWallet} [Limit] ✅ Swapped ${formatNum(tx.spentSUI)} SUI ↔ ${formatNum(tx.tokenAmountReadable)} $${tx.tokenSymbol}\n` +
+                    `🔗 <a href="${txUrl}">View Transaction Record on Explore</a>`;
+            } else {
+                messageText =
+                    `${shortWallet} [Limit] ✅ Swapped ${formatNum(tx.tokenAmountSold)} $${tx.tokenSymbol} ↔ ${formatNum(tx.suiAfterFee)} SUI\n` +
+                    `🔗 <a href="${txUrl}">View Transaction Record on Explore</a>`;
+            }
+
+            await bot.telegram.sendMessage(order.userId, messageText, {
+                parse_mode: "HTML",
+                disable_web_page_preview: true
+            });
+
         } catch (err) {
             console.error(`❌ Error processing order ${order.id}:`, err);
         }

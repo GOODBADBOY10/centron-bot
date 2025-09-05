@@ -22,11 +22,14 @@ import { saveUserStep, clearUserStep } from "./db.js";
 import { handleExecuteTokenWithdraw, handleWithdrawTokenAddress } from "../tokens/withdrawToken.js";
 import { decryptWallet } from "./generateWallet.js";
 import { handleCancel } from "./handleCancel.js";
+import { formatDuration, formatSui } from "../manageOrders/formater.js";
+import { checkUserOrders, showWalletsForOrders } from "../manageOrders/limitAndDca.js";
 
 export const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
 
 bot.start(handleStart);
+
 
 bot.command("wallets", async (ctx) => {
   const userId = ctx.from.id;
@@ -61,6 +64,248 @@ bot.command("positions", async (ctx) => {
 bot.command("cancel", async (ctx) => {
   const userId = ctx.from.id;
   await handleCancel(ctx, userId);
+});
+
+bot.command("orders", async (ctx) => {
+  const userId = ctx.from.id;
+  const { hasOrders } = await checkUserOrders(userId);
+  if (!hasOrders) {
+    return ctx.reply("❌ You do not have any limit or DCA orders yet.");
+  }
+
+  await showWalletsForOrders(ctx, userId);
+});
+
+// Matches anything like "view_orders_idx_0", "view_orders_idx_1", etc.
+bot.action(/^view_orders_idx_(\d+)$/, async (ctx) => {
+  const userId = ctx.from.id;
+  const index = ctx.match[1]; // wallet index
+
+  const step = await fetchUserStep(userId);
+  const walletAddress = step.walletMap[`wallet_${index}`];
+
+  const { limitOrders, dcaOrders } = await getUserOrders(userId);
+
+  const walletLimit = limitOrders.filter(o => o.walletAddress === walletAddress);
+  const walletDca = dcaOrders.filter(o => o.walletAddress === walletAddress);
+
+  if (walletLimit.length === 0 && walletDca.length === 0) {
+    await ctx.answerCbQuery(
+      "Centron Bot \n\nYou do not have any limit or DCA orders yet",
+      { show_alert: true }
+    );
+    return;
+  }
+
+  // Combine orders to get unique tokens
+  const allOrders = [...walletLimit, ...walletDca];
+  const tokenMap = {}; // key: token_0, token_1, ...
+  const tokenNames = {}; // store display names
+
+  allOrders.forEach((o) => {
+    const tokenName = o.tokenAddress.split("::").pop(); // crude symbol extraction
+    if (!Object.values(tokenMap).includes(o.tokenAddress)) {
+      const tokenIndex = `token_${Object.keys(tokenMap).length}`;
+      tokenMap[tokenIndex] = o.tokenAddress;
+      tokenNames[tokenIndex] = tokenName;
+    }
+  });
+
+  // Save tokenMap in user step for later lookup
+  await saveUserStep(userId, {
+    ...step,
+    state: "awaiting_token_selection",
+    walletMap: step.walletMap,
+    tokenMap,
+  });
+
+  // Build keyboard
+  const keyboard = Object.keys(tokenMap).map((tokenIndex) => ([{
+    text: `${tokenNames[tokenIndex]}`,
+    callback_data: `view_token_orders_${index}_${tokenIndex}`
+  }]));
+
+  // Add back button
+  keyboard.push([{ text: "← Back", callback_data: "manage_orders" }]);
+
+  // Message header
+  const msg = `Select a token to see a list of active Limit & DCA Orders for ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}:`;
+
+  await ctx.editMessageText(msg, {
+    parse_mode: "HTML",
+    reply_markup: { inline_keyboard: keyboard }
+  });
+
+});
+
+
+bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
+  const userId = ctx.from.id;
+  const walletIndex = ctx.match[1];
+  const tokenIndex = ctx.match[2];
+
+  const step = await fetchUserStep(userId);
+  const walletAddress = step.walletMap[`wallet_${walletIndex}`];
+  const tokenAddress = step.tokenMap[`token_${tokenIndex}`];
+
+  const { limitOrders, dcaOrders } = await getUserOrders(userId);
+
+  const walletLimit = limitOrders.filter(o => o.walletAddress === walletAddress && o.tokenAddress === tokenAddress);
+  const walletDca = dcaOrders.filter(o => o.walletAddress === walletAddress && o.tokenAddress === tokenAddress);
+
+  const tokenName = tokenAddress.split("::").pop();
+
+  let msg = `${tokenName} - <b>Limit Orders</b> for ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}\n\n`;
+
+  // Limit Orders
+  const buyLimit = walletLimit.filter(o => o.mode.toLowerCase() === "buy");
+  const sellLimit = walletLimit.filter(o => o.mode.toLowerCase() === "sell");
+
+  msg += `BUY:\n${buyLimit.length > 0 ? buyLimit.map(o => `<b>${formatSui(o.suiAmount)}</b> SUI at <b>$${o.triggerValue}</b>`).join("\n") : "No buy orders."}\n\n`;
+  msg += `SELL:\n${sellLimit.length > 0 ? sellLimit.map(o => `<b>${formatSui(o.suiAmount)}</b> SUI at <b>$${o.triggerValue}</b>`).join("\n") : "No sell orders."}\n\n`;
+
+  // DCA Orders
+  msg += `${tokenName} - <b>DCA Orders</b> for ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}\n\n`;
+  const buyDca = walletDca.filter(o => o.mode.toLowerCase() === "buy");
+  const sellDca = walletDca.filter(o => o.mode.toLowerCase() === "sell");
+
+  // BUY summary
+  if (buyDca.length > 0) {
+    const totalSui = buyDca.reduce((sum, o) => sum + Number(o.suiAmount), 0);
+    const readableTotal = formatSui(totalSui);
+    const interval = formatDuration(buyDca[0].intervalMinutes) || "?";
+    const totalPeriod = formatDuration(buyDca[0].intervalDuration) || "?"; // use duration from order
+    msg += `BUY:\nTotal <b>${readableTotal} SUI</b> worth of ${tokenName} through multiple payments with <b> interval ${interval}</b> for a <b>period of ${totalPeriod}</b>\n\n`;
+  } else {
+    msg += "BUY:\nNo buy orders.\n\n";
+  }
+
+  // SELL summary
+  if (sellDca.length > 0) {
+    const totalSui = sellDca.reduce((sum, o) => sum + Number(o.suiAmount), 0);
+    const readableTotal = formatSui(totalSui);
+    const interval = formatDuration(sellDca[0].intervalMinutes) || "?";
+    const totalPeriod = formatDuration(sellDca[0].intervalDuration) || "?";
+
+    msg += `SELL:\nTotal <b>${readableTotal} SUI</b> worth of ${tokenName} through multiple payments with <b> interval ${interval}</b> for a <b>period of ${totalPeriod}</b>\n`;
+  } else {
+    msg += "SELL:\nNo sell orders.\n";
+  }
+
+
+
+  const keyboard = [
+    [
+      { text: "➕ Limit Order", callback_data: "limit_order" },
+      { text: "➕ DCA Order", callback_data: "dca_order" },
+    ],
+    [
+      { text: "← Back", callback_data: `view_orders_idx_${walletIndex}` }
+    ]
+  ];
+
+  await ctx.editMessageText(msg, {
+    parse_mode: "HTML",
+    reply_markup: { inline_keyboard: keyboard }
+  });
+});
+
+bot.action("confirm_dca", async (ctx) => {
+  const userId = ctx.from.id;
+  const step = await fetchUserStep(userId);
+
+  if (!step || step.state !== "awaiting_dca_confirmation" || !step.pendingOrder) {
+    return ctx.answerCbQuery("❌ No DCA order to confirm.");
+  }
+
+  const { mode, suiAmount, suiPercentage } = step.pendingOrder;
+  const wallets = (step.selectedWallets || []).map(k => step.walletMap?.[k]).filter(Boolean);
+  const results = [];
+
+  for (const wallet of wallets) {
+    await savePendingDcaOrder({
+      userId,
+      walletAddress: wallet.address,
+      tokenAddress: step.tokenAddress,
+      mode,
+      suiAmount,
+      suiPercentage,
+      intervalMinutes: step.dcaIntervalMinutes,
+      intervalDuration: step.dcaDurationMinutes,
+      times: step.times,
+      duration: step.dcaDuration,
+      interval: step.dcaInterval,
+      slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
+    });
+
+    const amountText = suiAmount
+      ? (suiAmount / 1e9) + " SUI"
+      : suiPercentage + "%";
+
+    results.push(
+      `✅ DCA ${mode.toUpperCase()} order saved for ${amountText} into $${step.tokenInfo?.symbol ?? "??"} ` +
+      `with payments every ${step.dcaInterval} for ${step.dcaDuration} (${wallet.name || shortAddress(wallet.address)})`
+    );
+  }
+
+  await ctx.editMessageText(results.join("\n"), { parse_mode: "HTML" });
+
+  await saveUserStep(userId, { ...step, state: null, pendingOrder: null });
+});
+
+
+bot.action(/^confirm_dca_(.+)$/, async (ctx) => {
+  try {
+    const userId = ctx.from.id;
+    const confirmId = ctx.match[1];
+
+    const step = await fetchUserStep(userId);
+    const pending = step?.dcaConfirmations?.[confirmId];
+
+    if (!pending) {
+      return ctx.reply("❌ No pending DCA order found or it expired.");
+    }
+
+    const { mode, tokenAddress, suiAmount, suiPercentage, intervalMinutes, times, duration, interval, slippage, walletAddresses } = pending;
+
+    // 🔹 Save one order per wallet
+    for (const walletAddress of walletAddresses) {
+      await savePendingDcaOrder({
+        userId,
+        walletAddress,
+        tokenAddress,
+        mode,
+        suiAmount,
+        suiPercentage,
+        intervalMinutes,
+        times,
+        duration,
+        interval,
+        slippage,
+      });
+    }
+
+    // cleanup just this confirmId
+    delete step.dcaConfirmations[confirmId];
+    await saveUserStep(userId, step);
+
+    // 🔹 Build wallet list string
+    const walletList = (step.selectedWallets || [])
+      .map(w => `💳 ${w.name || shortAddress(w.address)}`)
+      .join("\n");
+
+    await ctx.editMessageText(
+      `✅ DCA ${mode.toUpperCase()} order saved for ` +
+      `${suiAmount ? (suiAmount / 1e9) + " SUI" : suiPercentage + "%"}` +
+      ` into $${step.tokenInfo?.symbol ?? "??"} ` +
+      `with payments every ${interval} for ${duration}`,
+      { parse_mode: "HTML" }
+    );
+
+  } catch (err) {
+    console.error("❌ Failed to confirm DCA order:", err);
+    return ctx.reply("❌ Something went wrong while saving your DCA order.");
+  }
 });
 
 function normalize(seed) {

@@ -219,3 +219,34 @@ export const handleDcaSetInterval = async (ctx) => {
     step.dcaIntervalMessageId = msg.message_id;
     await saveUserStep(userId, step);
 };
+
+export async function showDcaConfirmation(ctx, userId, step, { mode, suiAmount }) {
+    const { dcaDuration, dcaInterval, tokenInfo, selectedWallets, walletMap } = step;
+
+    const wallets = selectedWallets.map(k => walletMap[k]);
+    const walletList = wallets.map(
+        w => `💳 ${w.name || w.address.slice(0, 6) + "..." + w.address.slice(-4)}`
+    ).join("\n");
+
+    const action = mode.toUpperCase();
+    const amountReadable = suiAmount ? suiAmount / 1e9 : step.dcaAmount; // adjust based on how you store amounts
+
+    const text =
+        `You are about to submit a DCA order with following configuration:\n\n` +
+        `${action.toUpperCase()} a total of ${amountReadable} ${mode === "buy" ? "SUI" : "%"} ` +
+        `worth of $${tokenInfo.symbol} through multiple payments ` +
+        `with interval ${dcaInterval} for a period of ${dcaDuration}\n\n` +
+        `Selected wallets: ${walletList}`;
+
+
+    const keyboard = {
+        inline_keyboard: [
+            [
+                { text: "← Back", callback_data: "" },
+                { text: "✅ Confirm", callback_data: "confirm_dca" }
+            ]
+        ]
+    };
+
+    return ctx.reply(text, { parse_mode: "HTML", reply_markup: keyboard });
+}

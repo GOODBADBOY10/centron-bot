@@ -1,119 +1,91 @@
-// fetch order
-async function getUserOrders(userId) {
-    const user = await fetchUser(userId);
-    if (!user) {
-        console.log(`❌ No user found for ID: ${userId}`);
-        return { limitOrders: [], dcaOrders: [] };
-    }
+import { saveUserStep } from '../lib/db.js';
+import { db } from '../lib/db.js';
+import { fetchUser } from '../lib/db.js';
 
-    const limitOrders = user.limitOrders || [];
-    const dcaOrders = user.dcaOrders || [];
+export async function getUserOrders(userId) {
+    try {
+        const [limitSnap, dcaSnap] = await Promise.all([
+            db.collection("limitOrders").where("userId", "==", String(userId)).get(),
+            db.collection("dcaOrders").where("userId", "==", String(userId)).get(),
+        ]);
 
-    console.log(`- Limit Orders (${limitOrders.length}):`, limitOrders);
-    console.log(`- DCA Orders (${dcaOrders.length}):`, dcaOrders);
+        const limitOrders = limitSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const dcaOrders = dcaSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    return { limitOrders, dcaOrders };
-}
-
-
-// async function getUserOrders(userId) {
-//     const user = await fetchUser(userId);
-//     if (!user) return { limitOrders: [], dcaOrders: [] };
-
-//     return {
-//         limitOrders: user.limitOrders || [],
-//         dcaOrders: user.dcaOrders || []
-//     };
-// }
-
-
-// format order
-function formatLimitOrder(order, index, walletName, tokenSymbol) {
-    const amount =
-        order.suiAmount != null
-            ? `${order.suiAmount} SUI`
-            : `${order.suiPercentage}%`;
-
-    return (
-        `#${index + 1} 📈 <b>${order.mode.toUpperCase()}</b> ${amount} of ${tokenSymbol}\n` +
-        `   💼 Wallet: ${walletName}\n` +
-        `   🎯 Trigger: $${formatMarketCapValue(order.triggerValue)}\n` +
-        `   📊 Slippage: ${order.slippage}%\n`
-    );
-}
-
-
-function formatDCAOrder(order, index, walletName, tokenSymbol) {
-    return (
-        `${index + 1}. ${order.mode.toUpperCase()} ${order.suiAmount} SUI of ${tokenSymbol}\n` +
-        `   Wallet: ${walletName}\n` +
-        `   Every: ${order.intervalHours}h\n` +
-        `   Slippage: ${order.slippage}%\n`
-    );
-}
-
-
-// show menu
-export const handleManageOrders = async (ctx) => {
-    const userId = ctx.from.id.toString();
-    const { limitOrders, dcaOrders } = await getUserOrders(userId);
-
-    let text = "📋 <b>Your Orders</b>\n\n";
-
-    if (limitOrders.length === 0 && dcaOrders.length === 0) {
-        text += "❌ You have no active Limit or DCA orders.";
-        return ctx.reply(text, { parse_mode: "HTML" });
-    }
-
-    if (limitOrders.length > 0) {
-        text += "<b>Limit Orders:</b>\n";
-        limitOrders.forEach((o, i) => {
-            text += formatLimitOrder(o, i, o.walletName || "Unnamed", o.tokenSymbol || "Unknown") + "\n";
-        });
-    }
-
-    if (dcaOrders.length > 0) {
-        text += "\n<b>DCA Orders:</b>\n";
-        dcaOrders.forEach((o, i) => {
-            text += formatDCAOrder(o, i, o.walletName || "Unnamed", o.tokenSymbol || "Unknown") + "\n";
-        });
-    }
-
-    // Inline keyboard for cancellation
-    const keyboard = {
-        inline_keyboard: [
-            ...limitOrders.map((_, i) => [{ text: `❌ Cancel Limit #${i + 1}`, callback_data: `cancel_limit_${i}` }]),
-            ...dcaOrders.map((_, i) => [{ text: `❌ Cancel DCA #${i + 1}`, callback_data: `cancel_dca_${i}` }])
-        ]
-    };
-
-    return ctx.reply(text, { parse_mode: "HTML", reply_markup: keyboard });
-};
-
-
-// cancel orders
-export const handleCancelOrder = async (ctx, action) => {
-    const userId = ctx.from.id.toString();
-    const { limitOrders, dcaOrders } = await getUserOrders(userId);
-
-    if (action.startsWith("cancel_limit_")) {
-        const index = parseInt(action.replace("cancel_limit_", ""), 10);
-        if (!isNaN(index) && limitOrders[index]) {
-            limitOrders.splice(index, 1);
-            await updateUser(userId, { limitOrders });
-            return ctx.editMessageText("✅ Limit order cancelled.", { parse_mode: "HTML" });
+        // ✅ Add a message if both are empty
+        if (limitOrders.length === 0 && dcaOrders.length === 0) {
+            return { limitOrders, dcaOrders, message: "❌ You don’t have any limit or DCA orders yet." };
         }
-    }
 
-    if (action.startsWith("cancel_dca_")) {
-        const index = parseInt(action.replace("cancel_dca_", ""), 10);
-        if (!isNaN(index) && dcaOrders[index]) {
-            dcaOrders.splice(index, 1);
-            await updateUser(userId, { dcaOrders });
-            return ctx.editMessageText("✅ DCA order cancelled.", { parse_mode: "HTML" });
+        // ✅ Optional: separate messages if only one is missing
+        // if (limitOrders.length === 0 && dcaOrders.length > 0) {
+        //     return { limitOrders, dcaOrders, message: "⚠️ You don’t have any limit orders." };
+        // }
+        // if (dcaOrders.length === 0 && limitOrders.length > 0) {
+        //     return { limitOrders, dcaOrders, message: "⚠️ You don’t have any DCA orders." };
+        // }
+
+        return { limitOrders, dcaOrders };
+    } catch (err) {
+        console.error("❌ Failed to fetch user orders:", err);
+        return { limitOrders: [], dcaOrders: [], message: "❌ Failed to fetch your orders." };
+    }
+}
+
+export async function checkUserOrders(userId) {
+  const { limitOrders, dcaOrders } = await getUserOrders(userId);
+  return {
+    hasOrders: limitOrders.length > 0 || dcaOrders.length > 0,
+    limitOrders,
+    dcaOrders,
+  };
+}
+
+
+export async function showWalletsForOrders(ctx, userId) {
+    try {
+        const user = await fetchUser(userId);
+        const allWallets = user?.wallets || [];
+
+        if (!allWallets.length) {
+            return ctx.reply("❌ You haven't added any wallets yet.");
         }
+
+        const walletButtons = [];
+        const walletMap = {};
+
+        allWallets.forEach((wallet, index) => {
+            const address = wallet.address || wallet.walletAddress;
+            if (!address) return; // skip invalid wallet
+
+            const label = wallet.label || wallet.name || `${address.slice(0, 5)}...${address.slice(-4)}`;
+            walletMap[`wallet_${index}`] = address;
+            walletButtons.push({
+                text: `💳 ${label}`,
+                callback_data: `view_orders_idx_${index}`, // different prefix than positions
+            });
+        });
+
+        const keyboard = [];
+        for (let i = 0; i < walletButtons.length; i += 2) {
+            keyboard.push(walletButtons.slice(i, i + 2));
+        }
+        keyboard.push([{ text: "← Main Menu", callback_data: "start" }]);
+
+        await saveUserStep(userId, {
+            state: "awaiting_order_wallet",
+            walletMap,
+        });
+
+        const messageText = `Select a wallet to see a list of active Limit & DCA Orders for it:`
+        await ctx.reply(messageText, {
+            parse_mode: "HTML",
+            disable_web_page_preview: false,
+            reply_markup: { inline_keyboard: keyboard },
+        });
+        return true;
+    } catch (e) {
+        console.error(`❌ Error showing wallet list for user ${userId}:`, e?.message || e);
+        return ctx.reply("⚠ Failed to load wallets.");
     }
-
-    return ctx.answerCbQuery("⚠️ Order not found or already cancelled.");
-};
-
+}

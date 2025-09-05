@@ -1,5 +1,6 @@
 import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/aftermath.js";
 import { formatMarketCapValue } from "../mcap/formatMarketCap.js";
+import { showWalletsForOrders } from "../manageOrders/limitAndDca.js";
 import { generateQRCode } from "../qrcode/genQr.js";
 import { handleWithdrawTokenAmount, handleWithdrawTokens } from "../tokens/withdrawToken.js";
 import { handleBuySlippage, handleSellSlippage } from "./buySlippage.js";
@@ -9,7 +10,7 @@ import { savePendingLimitOrder } from "./db.js";
 import { saveOrUpdatePosition } from "./db.js";
 import { saveUserStep } from "./db.js";
 import { addWalletToUser, getUser } from "./db.js";
-import { handleDcaOrder, handleDcaSetDuration, handleDcaSetInterval } from "./dcaOrder.js";
+import { handleDcaOrder, handleDcaSetDuration, handleDcaSetInterval, showDcaConfirmation } from "./dcaOrder.js";
 import { decryptWallet, encryptWallet } from "./generateWallet.js";
 import { generateNewWallet } from "./genNewWallet.js";
 import { handleBuy } from "./handleBuy.js";
@@ -475,6 +476,22 @@ export async function handleAction(ctx, action, userId) {
                         results.push(
                             `✅ Limit ${mode} order saved for <b>${amount}${mode === "buy" ? " SUI" : "%"}</b> and will trigger at <b>$${formattedTrigger}</b> market cap.`
                         );
+                    } else if (isDcaOrder) {
+                        if (!step.dcaDuration || !step.dcaInterval) {
+                            results.push(`❌ ${wallet.name || shortAddress(address)}: Missing DCA duration or interval.`);
+                            continue;
+                        }
+                        await saveUserStep(userId, {
+                            ...step,
+                            pendingOrder: {
+                                mode,
+                                suiAmount,
+                                suiPercentage,
+                                type: "dca"
+                            },
+                            state: "awaiting_dca_confirmation"
+                        });
+                        return showDcaConfirmation(ctx, userId, step, { mode, suiAmount });
                     } else if (isMarketOrder) {
                         const result = mode === "buy"
                             ? await buyTokenWithAftermath({ tokenAddress: step.tokenAddress, phrase, suiAmount, slippage: step.buySlippage })
@@ -488,7 +505,7 @@ export async function handleAction(ctx, action, userId) {
                             const humanAmount = rawAmount / (10 ** decimals);
 
                             const tokenInfo = await getFallbackTokenDetails(result.tokenAddress, address);
-                            
+
                             await saveOrUpdatePosition(userId, address, removeUndefined({
                                 tokenAddress: result.tokenAddress,
                                 symbol: result.tokenSymbol,
@@ -569,6 +586,10 @@ export async function handleAction(ctx, action, userId) {
 
         case action === "dca_set_interval": {
             return handleDcaSetInterval(ctx);
+        }
+
+        case action === "manage_orders": {
+            return await showWalletsForOrders(ctx, userId);
         }
 
         case action === "back": {

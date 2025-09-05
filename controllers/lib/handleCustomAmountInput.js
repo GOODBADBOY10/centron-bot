@@ -6,6 +6,7 @@ import { formatNumber, removeUndefined } from "./handleAction.js";
 import { toSmallestUnit } from "./suiAmount.js";
 import { shortAddress } from "./shortAddress.js";
 import { formatMarketCapValue } from "../mcap/formatMarketCap.js"
+import crypto from "crypto";
 
 export async function handleCustomAmountInput(ctx, step, userId) {
     const amount = parseFloat(ctx.message.text);
@@ -48,9 +49,71 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             orderMode: null,
             limitTriggerValue: null,
         });
-        
+
         return ctx.reply(`✅ Limit ${mode} order saved for <b>${amount}${mode === "buy" ? " SUI" : "%"}</b> and will trigger at <b>$${formatMarketCapValue(triggerValue)}</b> market cap.`, {
             parse_mode: "HTML"
+        });
+    }
+
+    if (step.orderMode === "dca") {
+        const mode = step.state === "awaiting_custom_buy_amount" ? "buy" : "sell";
+        const tokenAddress = step.tokenAddress;
+
+        const suiAmount = mode === "buy" ? toSmallestUnit(amount) : null;
+        const suiPercentage = mode === "sell" ? Math.floor(amount, 10) : null;
+
+        // Build wallet list (multiple)
+        const walletList = (step.selectedWallets || [])
+            .map(w => {
+                const label = w.name || shortAddress(w.address);
+                return `💳 ${label}`;
+            })
+            .join("\n");
+
+        // Confirmation message
+        const confirmationMessage =
+            `You are about to submit a DCA order with following configuration:\n\n` +
+            `${mode.toUpperCase()} a total of ${amount} ${mode === "buy" ? "SUI" : "%"} ` +
+            `worth of $${step.tokenInfo?.symbol ?? "??"} through multiple payments ` +
+            `with interval ${step.dcaInterval} for a period of ${step.dcaDuration}\n\n` +
+            `Selected wallets:\n${walletList}`;
+
+        // Generate unique ID
+        const confirmId = crypto.randomBytes(6).toString("hex"); // 12 chars
+        const confirmKey = `confirm_dca_${confirmId}`;
+
+        // Save mapping (store all wallet addresses)
+        await saveUserStep(userId, {
+            ...step,
+            dcaConfirmations: {
+                ...(step.dcaConfirmations || {}),
+                [confirmId]: {
+                    mode,
+                    tokenAddress,
+                    suiAmount,
+                    suiPercentage,
+                    intervalMinutes: step.dcaIntervalMinutes,
+                    times: step.times,
+                    duration: step.dcaDuration,
+                    interval: step.dcaInterval,
+                    slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
+                    walletAddresses: (step.selectedWallets || []).map(w => w.address), // 🔹 all wallets
+                },
+            },
+        });
+
+        const confirmationKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: "← Back", callback_data: "" },
+                    { text: "✅ Confirm", callback_data: confirmKey },
+                ]
+            ]
+        };
+
+        return ctx.reply(confirmationMessage, {
+            parse_mode: "HTML",
+            reply_markup: confirmationKeyboard
         });
     }
 
