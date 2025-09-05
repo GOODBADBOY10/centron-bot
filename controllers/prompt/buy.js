@@ -95,6 +95,7 @@ export async function handleBuySellOrder(ctx, action) {
                     triggerValue: step.limitTriggerValue,
                     slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
                 }); 
+                
                 const formattedTrigger = formatMarketCapValue(step.limitTriggerValue);
                 results.push(
                     `✅ Limit ${mode} order saved for <b>${amountStr}${mode === "buy" ? " SUI" : "%"}</b> and will trigger at <b>$${formattedTrigger}</b> market cap.`
