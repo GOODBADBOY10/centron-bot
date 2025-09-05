@@ -91,7 +91,8 @@ bot.action(/^view_orders_idx_(\d+)$/, async (ctx) => {
 
   if (walletLimit.length === 0 && walletDca.length === 0) {
     await ctx.answerCbQuery(
-      "Centron Bot \n\nYou do not have any limit or DCA orders yet",
+      // "Centron Bot \n\nYou do not have any limit or DCA orders yet",
+      "You do not have any limit or DCA orders yet",
       { show_alert: true }
     );
     return;
