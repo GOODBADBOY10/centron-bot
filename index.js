@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import botModule from './controllers/lib/bot.js';
+import { checkPendingDcaOrders } from './controllers/dca/dca.js';
 import { checkPendingMcapOrders } from './controllers/mcap/mcap.js'
 dotenv.config();
 
@@ -50,3 +51,12 @@ setInterval(() => {
         console.error("Error in checkPendingMcapOrders:", err);
     }
 }, 20 * 1000);
+
+
+setInterval(() => {
+    try {
+        checkPendingDcaOrders()
+    } catch (err) {
+        console.error("Error in runDcaOrdersLoop:", err);
+    }
+}, 60 * 1000);

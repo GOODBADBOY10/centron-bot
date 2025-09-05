@@ -447,7 +447,7 @@ export async function saveOrUpdatePosition(userId, walletAddress, tokenInfo) {
             totalCostSUI: amountInSUI,
             avgPriceSUI: price,
             lastUpdated: Date.now(),
-             marketCap: marketCap ?? null,
+            marketCap: marketCap ?? null,
             txHistory: [newTx]
         });
     }
@@ -519,5 +519,80 @@ export async function markOrderAsCompleted(orderId) {
         await ref.update({ status: 'completed', completedAt: new Date().toISOString() });
     } catch (error) {
         console.error(`❌ Failed to mark order ${orderId} as completed:`, error);
+    }
+}
+
+export async function savePendingDcaOrder(order) {
+    try {
+        const orderId = `${order.userId}_${Date.now()}`;
+        const orderRef = db.collection('dcaOrders').doc(orderId);
+
+        const orderData = {
+            userId: String(order.userId),
+            walletAddress: order.walletAddress,
+            tokenAddress: order.tokenAddress,
+            mode: order.mode, // "buy" or "sell"
+            suiAmount: order.suiAmount || null, // if mode === "buy"
+            tokenPercentage: order.tokenPercentage || null, // if mode === "sell"
+            slippage: order.slippage ?? 1,
+            intervalMinutes: order.intervalMinutes, // how often to buy/sell
+            intervalDuration: order.intervalDuration,
+            times: order.times, // total DCA rounds
+            maxExecutions: order.times ?? null, // alias for loop logic
+            executedCount: 0, // start at 0
+            lastExecuted: null, // no runs yet
+            createdAt: new Date().toISOString(),
+            status: 'pending',
+        };
+
+        // Remove undefined values
+        Object.keys(orderData).forEach(key => {
+            if (orderData[key] === undefined) {
+                delete orderData[key];
+            }
+        });
+
+        await orderRef.set(orderData);
+    } catch (error) {
+        console.error("❌ Failed to save DCA order:");
+        throw error;
+    }
+}
+
+export async function getAllPendingDcaOrders() {
+    try {
+        const snapshot = await db.collection('dcaOrders')
+            .where('status', '==', 'pending')
+            .get();
+
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+    } catch (error) {
+        console.error("❌ Failed to fetch pending DCA orders:");
+        return [];
+    }
+}
+
+export async function markDcaOrderAsCompleted(orderId) {
+    try {
+        const ref = db.collection('dcaOrders').doc(orderId);
+        await ref.update({ status: 'completed', completedAt: new Date().toISOString() });
+    } catch (error) {
+        console.error(`❌ Failed to mark DCA order ${orderId} as completed:`);
+    }
+}
+
+export async function updateDcaOrderExecution(orderId, data) {
+    try {
+        const orderRef = db.collection("dcaOrders").doc(orderId);
+        await orderRef.update({
+            lastExecuted: data.lastExecuted,
+            executedCount: data.executedCount
+        });
+    } catch (error) {
+        console.error(`❌ Failed to update DCA order execution for ${orderId}:`);
+        throw error;
     }
 }
