@@ -398,6 +398,7 @@ export async function handleAction(ctx, action, userId) {
             const [mode, amountStr] = baseAction.split("_");
             const isLimitOrder = contextType === "limit";
             const isMarketOrder = contextType === "market";
+            const isDcaOrder = contextType === "dca";
 
             const step = await fetchUserStep(userId);
             if (!step) return ctx.reply("❌ Session expired. Please start again.");
@@ -415,10 +416,19 @@ export async function handleAction(ctx, action, userId) {
             }
             if (amountStr === "x") {
                 const newState = mode === "buy" ? "awaiting_custom_buy_amount" : "awaiting_custom_sell_amount";
+                
+                let orderMode = "market";
+                if (isLimitOrder) {
+                    orderMode = "limit";
+                } else if (isDcaOrder) {
+                    orderMode = "dca";
+                }
+
                 await saveUserStep(userId, {
                     ...step,
                     state: newState,
-                    orderMode: isLimitOrder ? "limit" : "market"
+                    orderMode,
+                    // orderMode: isLimitOrder ? "limit" : "market"
                 });
                 if (mode === "buy") {
                     return ctx.reply(
