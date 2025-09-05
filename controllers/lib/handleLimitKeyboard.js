@@ -290,11 +290,11 @@ export function buildDcaKeyboard(
 
     rows.push([
         {
-            text: `Duration: ${duration ? `${duration}m` : '--'}`,
+            text: `Duration: ${duration ? `${duration}m` : '-'}`,
             callback_data: "dca_set_duration"
         },
         {
-            text: `Interval: ${interval ? `${interval}m` : '--'}`,
+            text: `Interval: ${interval ? `${interval}m` : '-'}`,
             callback_data: "dca_set_interval"
         }
     ]);
