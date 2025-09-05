@@ -167,7 +167,10 @@ export async function handleDcaInput(ctx, step) {
     if (!minutes || minutes < 5) {
         return ctx.reply("❌ Invalid time. Use formats like 30m, 2h, 1d (min 5 mins).");
     }
-    switch (step.state) {
+    // switch (step.state)
+    const previousState = step.state; // store BEFORE setting step.state = null
+
+    switch (previousState) {
         case "awaiting_dca_duration":
             step.dcaDurationMinutes = minutes;
             step.dcaDuration = minutes;
@@ -179,6 +182,7 @@ export async function handleDcaInput(ctx, step) {
         default:
             return;
     }
+
     step.state = null;
     const user = await getUser(userId);
     const tokenInfo = step.tokenInfo;
@@ -273,10 +277,16 @@ export async function handleDcaInput(ctx, step) {
     }
     // Cleanup: delete prompt & reply
     const promptId =
-        step.state === "awaiting_dca_duration"
+        previousState === "awaiting_dca_duration"
             ? step.dcaDurationMessageId
-            : step.dcaIntervalMessageId;
+            : previousState === "awaiting_dca_interval"
+                ? step.dcaIntervalMessageId
+                : undefined;
 
+                //  const promptId =
+        // step.state === "awaiting_dca_duration"
+            // ? step.dcaDurationMessageId
+            // : step.dcaIntervalMessageId;
     if (promptId) {
         try {
             await ctx.telegram.deleteMessage(ctx.chat.id, promptId);

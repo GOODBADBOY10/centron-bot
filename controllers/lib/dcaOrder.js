@@ -116,7 +116,6 @@ export const handleDcaOrder = async (ctx) => {
     }
 };
 
-
 export async function renderDcaMessage(ctx, userId, step) {
     if (!step) step = await fetchUserStep(userId);
     if (!step || !step.tokenInfo) return;
