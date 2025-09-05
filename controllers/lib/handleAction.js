@@ -1,22 +1,12 @@
-import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/aftermath.js";
-import { formatMarketCapValue } from "../mcap/formatMarketCap.js";
 import { showWalletsForOrders } from "../manageOrders/limitAndDca.js";
-import { generateQRCode } from "../qrcode/genQr.js";
+import { closeMessage, showReferralQRCode } from "../qrcode/genQr.js";
 import { handleWithdrawTokenAmount, handleWithdrawTokens } from "../tokens/withdrawToken.js";
-import { handleBuySlippage, handleSellSlippage } from "./buySlippage.js";
 import { handleCancelToMain } from "./cancelToMain.js";
-import { fetchUserStep } from "./db.js";
-import { savePendingLimitOrder } from "./db.js";
-import { saveOrUpdatePosition } from "./db.js";
 import { saveUserStep } from "./db.js";
-import { addWalletToUser, getUser } from "./db.js";
 import { handleDcaOrder, handleDcaSetDuration, handleDcaSetInterval, showDcaConfirmation } from "./dcaOrder.js";
-import { decryptWallet, encryptWallet } from "./generateWallet.js";
-import { generateNewWallet } from "./genNewWallet.js";
 import { handleBuy } from "./handleBuy.js";
 import { handleConfig } from "./handleConfig.js";
 import { handleConnectWallet } from "./handleConnectWallet.js";
-import { renderMainMessage } from "./handleLimitKeyboard.js";
 import { handleViewPnL } from "./handlePnl.js";
 import { handleReferrals } from "./handleReferrals.js";
 import { handleSell } from "./handleSell.js";
@@ -26,14 +16,15 @@ import { handleViewPosition } from "./handleViewPosition.js";
 import { handleWallets } from "./handleWallets.js";
 import { handleEnterMcap, handleLimitOrder } from "./limitOrder.js";
 import { handleBackToMenu, handleRefreshInfo } from "./refresh.js";
-import { shortAddress } from "./shortAddress.js";
 import { handlePositionsWalletList, showWalletsForPositions } from "./showWalletsForPositions.js";
-import { toSmallestUnit } from "./suiAmount.js";
 import { handleToggleAllWallets, handleToggleMode, handleToggleWallet } from "./toggle.js";
 import { userSteps } from "./userState.js";
 import { handleConfirmDeleteWallet, handleDeleteWalletPrompt, handleRenameWalletPrompt, handleWalletInfo } from "./walletName.js";
 import { handleConfirmWithdraw, handleWithdrawSui } from "./withdraw.js";
-import { getFallbackTokenDetails } from "../../utils/getTokenDetails.js";
+import { promptBuySlippageAll, promptBuySlippageForWallet, promptSellSlippageAll, promptSellSlippageForWallet, startBuySlippageFlow, startSellSlippageFlow } from "../prompt/promptSlippage.js";
+import { handleBackAction } from "../prompt/back.js";
+import { handleBuySellOrder } from "../prompt/buy.js";
+import { createNewWallet, promptNewWalletsCount } from "../prompt/wallets.js";
 
 export function removeUndefined(obj) {
     return Object.fromEntries(
@@ -118,7 +109,7 @@ export async function handleAction(ctx, action, userId) {
 
         case /^view_pnl_card_idx_(\d+)$/.test(action): {
             const index = action.match(/^view_pnl_card_idx_(\d+)$/)[1];
-            await ctx.answerCbQuery("📊 Loading PnL...");
+            await ctx.answerCbQuery("Loading PnL...");
             return await handleViewPnL(ctx, index);
         }
 
@@ -128,22 +119,12 @@ export async function handleAction(ctx, action, userId) {
         }
 
         case (action === 'show_qr'): {
-            const userId = ctx.from.id.toString();
-            const referralLink = `https://t.me/${ctx.me}?start=ref_${userId}`;
-            const qrImageBuffer = await generateQRCode(referralLink); // your custom function
-            await ctx.replyWithPhoto({ source: qrImageBuffer }, { caption: "Here's your referral QR code." });
-
-            await ctx.answerCbQuery();
+            await showReferralQRCode(ctx);
             break;
         }
 
         case (action === 'close_msg'): {
-            try {
-                await ctx.deleteMessage();
-            } catch (err) {
-                console.error("❌ Couldn't delete message:", err.message);
-            }
-            await ctx.answerCbQuery("Closed.");
+            await closeMessage(ctx);
             break;
         }
 
@@ -153,56 +134,12 @@ export async function handleAction(ctx, action, userId) {
         }
 
         case action === "new_wallet": {
-            try {
-                const userId = ctx.from.id;
-                const wallet = await generateNewWallet(userId);
-                const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET
-                const rawPrivateKey = wallet.privateKey;
-                const encryptedPrivateKey = encryptWallet(wallet.privateKey, ENCRYPTION_SECRET);
-                const encryptedSeedPhrase = encryptWallet(wallet.seedPhrase, ENCRYPTION_SECRET);
-                const { walletAddress, privateKey, seedPhrase } = wallet;
-                const newWallet = {
-                    walletAddress,
-                    privateKey: encryptedPrivateKey,
-                    seedPhrase: encryptedSeedPhrase,
-                    balance: "0.0"
-                }
-                await addWalletToUser(userId.toString(), newWallet);
-                await ctx.answerCbQuery("✅ Wallet created!");
-                let message = '';
-                message += `✅ New wallet created!\n\n`;
-                message += `Address: <code>${walletAddress}</code> (tap to copy)\n\n`;
-                message += `Private key: <code>${rawPrivateKey}</code> (tap to copy)\n\n`;
-                message += "⚠ Save your private key on paper only. Avoid storing it digitally. After you finish saving/importing the wallet credentials, delete this message. The bot will not display this information again.";
-                // Clear sensitive data from memory
-                wallet.privateKey = undefined;
-                wallet.seedPhrase = undefined;
-                return ctx.editMessageText(message, {
-                    parse_mode: "HTML",
-                    reply_markup: {
-                        inline_keyboard: [[
-                            { text: "← Back to Wallets", callback_data: "wallets" }
-                        ]]
-                    }
-                });
-            } catch (error) {
-                console.error("Error creating new wallet:", error);
-                await ctx.answerCbQuery("❌ Failed to create wallet. Please try again.", { show_alert: true });
-            }
+            await createNewWallet(ctx);
             break;
         }
 
         case action === "x_new_wallets": {
-            await saveUserStep(userId, {
-                state: "awaiting_wallet_generation_count",
-                flow: "generate_wallets"
-            });
-
-            await ctx.reply("How many wallets would you like to generate? (Maximum 10)", {
-                reply_markup: {
-                    force_reply: true
-                }
-            });
+            await promptNewWalletsCount(ctx);
             break;
         }
 
@@ -216,153 +153,36 @@ export async function handleAction(ctx, action, userId) {
         }
 
         case action === "buy_slippage": {
-            const userId = ctx.from.id;
-            const step = {
-                state: "setting_buy_slippage",
-                returnTo: "config",
-            };
-
-            await saveUserStep(userId, step);
-            await handleBuySlippage(ctx, userId, step);
+            await startBuySlippageFlow(ctx);
             break;
         }
 
         case action === "set_buy_slippage_all": {
-            const userId = ctx.from.id;
-
-            const promptMessage = await ctx.reply(
-                "Enter buy slippage % for *all wallets* (e.g. 1)",
-                {
-                    parse_mode: "Markdown",
-                    reply_markup: {
-                        force_reply: true,
-                    },
-                }
-            );
-
-            await saveUserStep(userId, {
-                state: "awaiting_slippage_input",
-                scope: "all",
-                type: "buy",
-                returnTo: "config",
-                mainMessageId: ctx.callbackQuery?.message?.message_id,
-                promptMessageId: promptMessage.message_id,
-            });
-
+            await promptBuySlippageAll(ctx);
             break;
         }
 
-        case typeof action === "string" &&
-            action.startsWith("set_buy_slippage_"): {
-                const userId = ctx.from.id;
-                const index = parseInt(action.replace("set_buy_slippage_", ""));
-                const user = await getUser(userId);
-                const wallet = user.wallets?.[index];
-
-                if (!wallet) {
-                    await ctx.reply("❌ Wallet not found.");
-                    return;
-                }
-                const address = wallet.walletAddress;
-                const explorerLink = `https://suivision.xyz/account/${address}`;
-                const display = wallet.name?.trim() || shortAddress(address);
-                const message = `Enter buy slippage % for <a href="${explorerLink}">${display}</a>`;
-                const promptMessage = await ctx.reply(message, {
-                    parse_mode: "HTML",
-                    disable_web_page_preview: true,
-                    reply_markup: {
-                        force_reply: true,
-                    },
-                });
-
-                await saveUserStep(userId, {
-                    state: "awaiting_slippage_input",
-                    scope: "wallet",
-                    walletAddress: wallet.walletAddress,
-                    walletKey: index,
-                    slippageTarget: index,
-                    type: "buy",
-                    returnTo: "config",
-                    mainMessageId: ctx.callbackQuery?.message?.message_id,
-                    promptMessageId: promptMessage.message_id,
-                });
-
-                break;
-            }
+        case typeof action === "string" && action.startsWith("set_buy_slippage_"): {
+            const index = parseInt(action.replace("set_buy_slippage_", ""));
+            await promptBuySlippageForWallet(ctx, index);
+            break;
+        }
 
         case action === "sell_slippage": {
-            const userId = ctx.from.id;
-            const step = {
-                state: "setting_sell_slippage",
-                returnTo: "config",
-            };
-
-            await saveUserStep(userId, step);
-            await handleSellSlippage(ctx, userId, step);
+            await startSellSlippageFlow(ctx);
             break;
         }
 
         case action === "set_sell_slippage_all": {
-            const userId = ctx.from.id;
-
-            const promptMessage = await ctx.reply(
-                "Enter sell slippage % for *all wallets* (e.g. 1)",
-                {
-                    parse_mode: "Markdown",
-                    reply_markup: {
-                        force_reply: true,
-                    },
-                }
-            );
-
-            await saveUserStep(userId, {
-                state: "awaiting_slippage_input",
-                scope: "all",
-                type: "sell",
-                returnTo: "config",
-                mainMessageId: ctx.callbackQuery?.message?.message_id,
-                promptMessageId: promptMessage.message_id,
-            });
-
+            await promptSellSlippageAll(ctx);
             break;
         }
 
-        case typeof action === "string" &&
-            action.startsWith("set_sell_slippage_"): {
-                const userId = ctx.from.id;
-                const index = parseInt(action.replace("set_sell_slippage_", ""));
-                const user = await getUser(userId);
-                const wallet = user.wallets?.[parseInt(index)];
-                if (!wallet) {
-                    await ctx.reply("❌ Wallet not found.");
-                    return;
-                }
-                const address = wallet.walletAddress;
-                const explorerLink = `https://suivision.xyz/account/${address}`;
-                const display = wallet.name?.trim() || shortAddress(address);
-                const message = `Enter sell slippage % for <a href="${explorerLink}">${display}</a>`;
-
-                const promptMessage = await ctx.reply(message, {
-                    parse_mode: "HTML",
-                    disable_web_page_preview: true,
-                    reply_markup: {
-                        force_reply: true,
-                    },
-                });
-                await saveUserStep(userId, {
-                    state: "awaiting_slippage_input",
-                    scope: "wallet",
-                    walletAddress: wallet.walletAddress,
-                    walletKey: index,
-                    slippageTarget: index,
-                    type: "sell",
-                    returnTo: "config",
-                    mainMessageId: ctx.callbackQuery?.message?.message_id,
-                    promptMessageId: promptMessage.message_id,
-                });
-                break;
-            }
-
+        case typeof action === "string" && action.startsWith("set_sell_slippage_"): {
+            const index = parseInt(action.replace("set_sell_slippage_", ""));
+            await promptSellSlippageForWallet(ctx, index);
+            break;
+        }
 
         case action === "back_to_config": {
             const userId = ctx.from.id.toString();
@@ -389,171 +209,180 @@ export async function handleAction(ctx, action, userId) {
             return handleRefreshInfo(ctx);
         }
 
-        case /^buy_\d+(:limit|:market)?$/.test(action):
-        case /^buy_x(:limit|:market)?$/.test(action):
-        case /^sell_\d+(:limit|:market)?$/.test(action):
-        case /^sell_x(:limit|:market)?$/.test(action): {
-            const userId = ctx.from.id;
-            const [baseAction, contextType] = action.split(":");
-            const [mode, amountStr] = baseAction.split("_");
-            const isLimitOrder = contextType === "limit";
-            const isMarketOrder = contextType === "market";
-            const isDcaOrder = contextType === "dca";
+        // case /^buy_\d+(:limit|:market)?$/.test(action):
+        // case /^buy_x(:limit|:market)?$/.test(action):
+        // case /^sell_\d+(:limit|:market)?$/.test(action):
+        // case /^sell_x(:limit|:market)?$/.test(action): {
+        //     const userId = ctx.from.id;
+        //     const [baseAction, contextType] = action.split(":");
+        //     const [mode, amountStr] = baseAction.split("_");
+        //     const isLimitOrder = contextType === "limit";
+        //     const isMarketOrder = contextType === "market";
+        //     const isDcaOrder = contextType === "dca";
 
-            const step = await fetchUserStep(userId);
-            if (!step) return ctx.reply("❌ Session expired. Please start again.");
+        //     const step = await fetchUserStep(userId);
+        //     if (!step) return ctx.reply("❌ Session expired. Please start again.");
 
-            const user = await getUser(userId);
-            const wallets = user.wallets || [];
+        //     const user = await getUser(userId);
+        //     const wallets = user.wallets || [];
 
-            if (!step.tokenAddress) {
-                return ctx.reply("❌ No token selected. Please enter a token address first.");
-            }
+        //     if (!step.tokenAddress) {
+        //         return ctx.reply("❌ No token selected. Please enter a token address first.");
+        //     }
 
-            const selectedWallets = (step.selectedWallets || []).map(k => step.walletMap?.[k]).filter(Boolean);
-            if (selectedWallets.length === 0) {
-                return ctx.reply("❌ No wallet selected.");
-            }
-            if (amountStr === "x") {
-                const newState = mode === "buy" ? "awaiting_custom_buy_amount" : "awaiting_custom_sell_amount";
-                
-                let orderMode = "market";
-                if (isLimitOrder) {
-                    orderMode = "limit";
-                } else if (isDcaOrder) {
-                    orderMode = "dca";
-                }
+        //     const selectedWallets = (step.selectedWallets || []).map(k => step.walletMap?.[k]).filter(Boolean);
+        //     if (selectedWallets.length === 0) {
+        //         return ctx.reply("❌ No wallet selected.");
+        //     }
+        //     if (amountStr === "x") {
+        //         const newState = mode === "buy" ? "awaiting_custom_buy_amount" : "awaiting_custom_sell_amount";
 
-                await saveUserStep(userId, {
-                    ...step,
-                    state: newState,
-                    orderMode,
-                    // orderMode: isLimitOrder ? "limit" : "market"
-                });
-                if (mode === "buy") {
-                    return ctx.reply(
-                        `How much SUI would you like to use for the token purchase?\n\nPlease reply with the amount.`,
-                        { parse_mode: "Markdown", reply_markup: { force_reply: true } }
-                    );
-                } else {
-                    return ctx.reply(
-                        `How much of your tokens would you like to sell?\n\nPlease reply with the percentage.`,
-                        { parse_mode: "Markdown", reply_markup: { force_reply: true } }
-                    );
-                }
-            }
+        //         let orderMode = "market";
+        //         if (isLimitOrder) {
+        //             orderMode = "limit";
+        //         } else if (isDcaOrder) {
+        //             orderMode = "dca";
+        //         }
 
-            const parsedAmount = parseFloat(amountStr);
-            const suiAmount = !isNaN(parsedAmount) && parsedAmount > 0 ? toSmallestUnit(parsedAmount) : null;
-            const suiPercentage = parseInt(amountStr, 10);
-            const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET
-            const results = [];
-            await ctx.reply(`⏳ Executing ${mode} order for ${selectedWallets.length} wallet(s)...`);
-            for (const wallet of selectedWallets) {
-                let phrase;
-                try {
-                    const encrypted = wallet.seedPhrase || wallet.privateKey;
-                    const decrypted = decryptWallet(encrypted, ENCRYPTION_SECRET);
-                    if (typeof decrypted === "string") {
-                        phrase = decrypted;
-                    } else if (decrypted && typeof decrypted === "object") {
-                        phrase = decrypted.privateKey || decrypted.seedPhrase;
-                    }
-                    if (!phrase) throw new Error("Missing decrypted phrase or key.");
-                } catch (err) {
-                    results.push(`❌ ${wallet.name || shortAddress(wallet.address)}: Failed to decrypt wallet.`);
-                    continue;
-                }
-                const address = wallet.address || wallet.walletAddress;
-                try {
-                    if (isLimitOrder) {
-                        if (!step.limitTriggerValue) {
-                            results.push(`❌ ${wallet.name || shortAddress(address)}: Missing trigger value.`);
-                            continue;
-                        }
-                        await savePendingLimitOrder({
-                            userId,
-                            walletAddress: address,
-                            tokenAddress: step.tokenAddress,
-                            mode,
-                            suiAmount,
-                            suiPercentage,
-                            triggerValue: step.limitTriggerValue,
-                            slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
-                        });
-                        const formattedTrigger = formatMarketCapValue(step.limitTriggerValue);
+        //         await saveUserStep(userId, {
+        //             ...step,
+        //             state: newState,
+        //             orderMode,
+        //             // orderMode: isLimitOrder ? "limit" : "market"
+        //         });
+        //         if (mode === "buy") {
+        //             return ctx.reply(
+        //                 `How much SUI would you like to use for the token purchase?\n\nPlease reply with the amount.`,
+        //                 { parse_mode: "Markdown", reply_markup: { force_reply: true } }
+        //             );
+        //         } else {
+        //             return ctx.reply(
+        //                 `How much of your tokens would you like to sell?\n\nPlease reply with the percentage.`,
+        //                 { parse_mode: "Markdown", reply_markup: { force_reply: true } }
+        //             );
+        //         }
+        //     }
 
-                        results.push(
-                            `✅ Limit ${mode} order saved for <b>${amount}${mode === "buy" ? " SUI" : "%"}</b> and will trigger at <b>$${formattedTrigger}</b> market cap.`
-                        );
-                    } else if (isDcaOrder) {
-                        if (!step.dcaDuration || !step.dcaInterval) {
-                            results.push(`❌ ${wallet.name || shortAddress(address)}: Missing DCA duration or interval.`);
-                            continue;
-                        }
-                        await saveUserStep(userId, {
-                            ...step,
-                            pendingOrder: {
-                                mode,
-                                suiAmount,
-                                suiPercentage,
-                                type: "dca"
-                            },
-                            state: "awaiting_dca_confirmation"
-                        });
-                        return showDcaConfirmation(ctx, userId, step, { mode, suiAmount });
-                    } else if (isMarketOrder) {
-                        const result = mode === "buy"
-                            ? await buyTokenWithAftermath({ tokenAddress: step.tokenAddress, phrase, suiAmount, slippage: step.buySlippage })
-                            : await sellTokenWithAftermath({ tokenAddress: step.tokenAddress, phrase, suiPercentage, slippage: step.sellSlippage });
+        //     const parsedAmount = parseFloat(amountStr);
+        //     const suiAmount = !isNaN(parsedAmount) && parsedAmount > 0 ? toSmallestUnit(parsedAmount) : null;
+        //     const suiPercentage = parseInt(amountStr, 10);
+        //     const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET
+        //     const results = [];
+        //     await ctx.reply(`⏳ Executing ${mode} order for ${selectedWallets.length} wallet(s)...`);
+        //     for (const wallet of selectedWallets) {
+        //         let phrase;
+        //         try {
+        //             const encrypted = wallet.seedPhrase || wallet.privateKey;
+        //             const decrypted = decryptWallet(encrypted, ENCRYPTION_SECRET);
+        //             if (typeof decrypted === "string") {
+        //                 phrase = decrypted;
+        //             } else if (decrypted && typeof decrypted === "object") {
+        //                 phrase = decrypted.privateKey || decrypted.seedPhrase;
+        //             }
+        //             if (!phrase) throw new Error("Missing decrypted phrase or key.");
+        //         } catch (err) {
+        //             results.push(`❌ ${wallet.name || shortAddress(wallet.address)}: Failed to decrypt wallet.`);
+        //             continue;
+        //         }
+        //         const address = wallet.address || wallet.walletAddress;
+        //         try {
+        //             if (isLimitOrder) {
+        //                 if (!step.limitTriggerValue) {
+        //                     results.push(`❌ ${wallet.name || shortAddress(address)}: Missing trigger value.`);
+        //                     continue;
+        //                 }
+        //                 await savePendingLimitOrder({
+        //                     userId,
+        //                     walletAddress: address,
+        //                     tokenAddress: step.tokenAddress,
+        //                     mode,
+        //                     suiAmount,
+        //                     suiPercentage,
+        //                     triggerValue: step.limitTriggerValue,
+        //                     slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
+        //                 });
+        //                 const formattedTrigger = formatMarketCapValue(step.limitTriggerValue);
 
-                        if (!result) throw new Error("No result returned");
-                        const decimals = result.decimals ?? 9;
-                        if (mode === "buy") {
-                            const rawAmount = result.tokenAmountReceived;
-                            // const decimals = result.decimals ?? 9;
-                            const humanAmount = rawAmount / (10 ** decimals);
+        //                 results.push(
+        //                     `✅ Limit ${mode} order saved for <b>${amount}${mode === "buy" ? " SUI" : "%"}</b> and will trigger at <b>$${formattedTrigger}</b> market cap.`
+        //                 );
+        //             } else if (isDcaOrder) {
+        //                 if (!step.dcaDuration || !step.dcaInterval) {
+        //                     results.push(`❌ ${wallet.name || shortAddress(address)}: Missing DCA duration or interval.`);
+        //                     continue;
+        //                 }
+        //                 await saveUserStep(userId, {
+        //                     ...step,
+        //                     pendingOrder: {
+        //                         mode,
+        //                         suiAmount,
+        //                         suiPercentage,
+        //                         type: "dca"
+        //                     },
+        //                     state: "awaiting_dca_confirmation"
+        //                 });
+        //                 return showDcaConfirmation(ctx, userId, step, { mode, suiAmount });
+        //             } else if (isMarketOrder) {
+        //                 const result = mode === "buy"
+        //                     ? await buyTokenWithAftermath({ tokenAddress: step.tokenAddress, phrase, suiAmount, slippage: step.buySlippage })
+        //                     : await sellTokenWithAftermath({ tokenAddress: step.tokenAddress, phrase, suiPercentage, slippage: step.sellSlippage });
 
-                            const tokenInfo = await getFallbackTokenDetails(result.tokenAddress, address);
+        //                 if (!result) throw new Error("No result returned");
+        //                 const decimals = result.decimals ?? 9;
+        //                 if (mode === "buy") {
+        //                     const rawAmount = result.tokenAmountReceived;
+        //                     // const decimals = result.decimals ?? 9;
+        //                     const humanAmount = rawAmount / (10 ** decimals);
 
-                            await saveOrUpdatePosition(userId, address, removeUndefined({
-                                tokenAddress: result.tokenAddress,
-                                symbol: result.tokenSymbol,
-                                amountBought: humanAmount,
-                                amountInSUI: result.spentSUI,
-                                decimals: decimals,
-                                marketCap: tokenInfo?.tokenInfo?.marketCap ?? null,
-                            }));
-                        }
-                        const txLink = `https://suiscan.xyz/mainnet/tx/${result.transactionDigest}`;
-                        const walletLink = `https://suiscan.xyz/mainnet/account/${address}`;
-                        const tokenAmountReadable = Number(result.tokenAmountSold) / (10 ** decimals);
-                        // const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
-                        results.push(
-                            `<a href="${walletLink}">${wallet.name || shortAddress(address)}</a> ✅ ${mode === "buy"
-                                ? `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}`
-                                : `Swapped ${formatNumber(tokenAmountReadable)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI`
-                            }\n🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`
-                        );
-                    }
+        //                     const tokenInfo = await getFallbackTokenDetails(result.tokenAddress, address);
 
-                } catch (err) {
-                    const msg = typeof err?.message === "string" ? err.message : "Unknown error";
-                    results.push(`❌ ${wallet.name || shortAddress(address)}: ${msg}`);
-                }
-            }
-            // Clear state after
-            await saveUserStep(userId, { userId, state: null });
-            // await saveUserStep(userId, {
-            // ...step,
-            // state: null,
-            // currentFlow: null,
-            // orderMode: null,
-            // limitTriggerValue: null,
-            // });
-            await ctx.reply(results.join("\n\n"), { parse_mode: "HTML" });
-            return ctx.answerCbQuery();
+        //                     await saveOrUpdatePosition(userId, address, removeUndefined({
+        //                         tokenAddress: result.tokenAddress,
+        //                         symbol: result.tokenSymbol,
+        //                         amountBought: humanAmount,
+        //                         amountInSUI: result.spentSUI,
+        //                         decimals: decimals,
+        //                         marketCap: tokenInfo?.tokenInfo?.marketCap ?? null,
+        //                     }));
+        //                 }
+        //                 const txLink = `https://suiscan.xyz/mainnet/tx/${result.transactionDigest}`;
+        //                 const walletLink = `https://suiscan.xyz/mainnet/account/${address}`;
+        //                 const tokenAmountReadable = Number(result.tokenAmountSold) / (10 ** decimals);
+        //                 // const tokenAmountReadable = Number(result.tokenAmountSold) / 1e9;
+        //                 results.push(
+        //                     `<a href="${walletLink}">${wallet.name || shortAddress(address)}</a> ✅ ${mode === "buy"
+        //                         ? `Swapped ${formatNumber(result.spentSUI)} SUI ↔ ${formatNumber(result.tokenAmountReadable)} $${result.tokenSymbol}`
+        //                         : `Swapped ${formatNumber(tokenAmountReadable)} $${result.tokenSymbol ?? "??"} ↔ ${formatNumber(result.actualSuiReceived ?? 0)} SUI`
+        //                     }\n🔗 <a href="${txLink}">View Transaction Record on Explorer</a>`
+        //                 );
+        //             }
+
+        //         } catch (err) {
+        //             const msg = typeof err?.message === "string" ? err.message : "Unknown error";
+        //             results.push(`❌ ${wallet.name || shortAddress(address)}: ${msg}`);
+        //         }
+        //     }
+        //     // Clear state after
+        //     await saveUserStep(userId, { userId, state: null });
+        //     // await saveUserStep(userId, {
+        //     // ...step,
+        //     // state: null,
+        //     // currentFlow: null,
+        //     // orderMode: null,
+        //     // limitTriggerValue: null,
+        //     // });
+        //     await ctx.reply(results.join("\n\n"), { parse_mode: "HTML" });
+        //     return ctx.answerCbQuery();
+        // }
+
+        case /^buy_\d+(:limit|:market|:dca)?$/.test(action):
+        case /^buy_x(:limit|:market|:dca)?$/.test(action):
+        case /^sell_\d+(:limit|:market|:dca)?$/.test(action):
+        case /^sell_x(:limit|:market|:dca)?$/.test(action): {
+            await handleBuySellOrder(ctx, action);
+            break;
         }
+
 
         case action.startsWith("withdraw_sui_"): {
             return handleWithdrawSui(ctx, action);
@@ -603,22 +432,8 @@ export async function handleAction(ctx, action, userId) {
         }
 
         case action === "back": {
-            const userId = ctx.from.id;
-            let step = await fetchUserStep(userId);
-            if (!step) step = {};
-
-            // Exit limit order flow cleanly
-            delete step.isInLimitFlow;
-            delete step.limitTriggerValue;
-            step.currentFlow = null;
-
-            // ✅ DO NOT delete tokenInfo or mode — required for re-render
-            await saveUserStep(userId, step);
-
-            // Re-render token info view with full keyboard and balances
-            await renderMainMessage(ctx, userId);
-
-            return ctx.answerCbQuery("🔙 Back to token info");
+            await handleBackAction(ctx);
+            break;
         }
 
         case action.startsWith("toggle_wallet:"): {
