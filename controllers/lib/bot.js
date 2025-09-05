@@ -23,7 +23,7 @@ import { handleExecuteTokenWithdraw, handleWithdrawTokenAddress } from "../token
 import { decryptWallet } from "./generateWallet.js";
 import { handleCancel } from "./handleCancel.js";
 import { formatDuration, formatSui } from "../manageOrders/formater.js";
-import { checkUserOrders, showWalletsForOrders } from "../manageOrders/limitAndDca.js";
+import { checkUserOrders, getUserOrders, showWalletsForOrders } from "../manageOrders/limitAndDca.js";
 
 export const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
