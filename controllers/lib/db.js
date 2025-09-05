@@ -9,7 +9,7 @@ admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
 });
 
-const db = admin.firestore();
+export const db = admin.firestore();
 
 // Save/update user in Firestore
 export async function saveUser(userId, data) {
