@@ -83,8 +83,26 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         const confirmKey = `confirm_dca_${confirmId}`;
 
         // Save mapping (store all wallet addresses)
-        console.log("step.selectedWallets:", step.selectedWallets);
-        console.log("walletMap:", step.walletMap);
+        // Normalize selected wallets into full objects
+        const selectedWallets = (step.selectedWallets || []).map(k => {
+            const wallet = step.walletMap?.[k];
+
+            if (wallet && typeof wallet === "object") return wallet;
+
+            if (typeof wallet === "string") {
+                return {
+                    address: wallet,
+                    walletAddress: wallet,
+                    name: wallet.slice(0, 6) + "..." + wallet.slice(-4),
+                    key: k,
+                };
+            }
+
+            return null;
+        }).filter(Boolean);
+
+        // Save mapping (store all wallet addresses safely)
+        console.log("selectedWallets:", selectedWallets);
         await saveUserStep(userId, {
             ...step,
             dcaConfirmations: {
@@ -99,13 +117,32 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                     duration: step.dcaDuration,
                     interval: step.dcaInterval,
                     slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
-                    walletAddresses: (step.selectedWallets || [])
-                        .map(w => w?.address)
-                        .filter(addr => typeof addr === "string" && addr.length > 0),
-                    // walletAddresses: (step.selectedWallets || []).map(w => w.address), // 🔹 all wallets
+                    walletAddresses: selectedWallets.map(w => w.address), // ✅ always defined
                 },
             },
         });
+
+        // await saveUserStep(userId, {
+        //     ...step,
+        //     dcaConfirmations: {
+        //         ...(step.dcaConfirmations || {}),
+        //         [confirmId]: {
+        //             mode,
+        //             tokenAddress,
+        //             suiAmount,
+        //             suiPercentage,
+        //             intervalMinutes: step.dcaIntervalMinutes,
+        //             times: step.times ?? 0,
+        //             duration: step.dcaDuration,
+        //             interval: step.dcaInterval,
+        //             slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
+        //             walletAddresses: (step.selectedWallets || [])
+        //                 .map(w => w?.address)
+        //                 .filter(addr => typeof addr === "string" && addr.length > 0),
+        //             // walletAddresses: (step.selectedWallets || []).map(w => w.address), // 🔹 all wallets
+        //         },
+        //     },
+        // });
 
         const confirmationKeyboard = {
             inline_keyboard: [

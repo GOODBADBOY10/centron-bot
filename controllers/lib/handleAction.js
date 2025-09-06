@@ -387,7 +387,6 @@ export async function handleAction(ctx, action, userId) {
         case /^buy_x(:limit|:market|:dca)?$/.test(action):
         case /^sell_\d+(:limit|:market|:dca)?$/.test(action):
         case /^sell_x(:limit|:market|:dca)?$/.test(action): {
-            console.log(`action: ${action}`);
             try {
                 await handleBuySellOrder(ctx, action);
             } catch (error) {
