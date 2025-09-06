@@ -105,7 +105,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         const confirmationKeyboard = {
             inline_keyboard: [
                 [
-                    { text: "← Back", callback_data: "" },
+                    { text: "← Back", callback_data: "nool" },
                     { text: "✅ Confirm", callback_data: confirmKey },
                 ]
             ]

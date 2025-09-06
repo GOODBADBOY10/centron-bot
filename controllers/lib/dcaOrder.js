@@ -241,7 +241,7 @@ export async function showDcaConfirmation(ctx, userId, step, { mode, suiAmount }
     const keyboard = {
         inline_keyboard: [
             [
-                { text: "← Back", callback_data: "" },
+                { text: "← Back", callback_data: "nool" },
                 { text: "✅ Confirm", callback_data: "confirm_dca" }
             ]
         ]
