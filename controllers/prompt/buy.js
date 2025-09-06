@@ -33,11 +33,21 @@ export async function handleBuySellOrder(ctx, action) {
 
     // Handle custom amount
     if (amountStr === "x") {
-        const newState = mode === "buy" ? "awaiting_custom_buy_amount" : "awaiting_custom_sell_amount";
+        let newState;
+
+        if (mode === "buy") {
+            newState = "awaiting_custom_buy_amount";
+        } else {
+            newState = "awaiting_custom_sell_amount";
+        }
+        // const newState = mode === "buy" ? "awaiting_custom_buy_amount" : "awaiting_custom_sell_amount";
 
         let orderMode = "market";
-        if (isLimitOrder) orderMode = "limit";
-        else if (isDcaOrder) orderMode = "dca";
+        if (isLimitOrder) {
+            orderMode = "limit";
+        } else if (isDcaOrder) {
+            orderMode = "dca";
+        }
 
         await saveUserStep(userId, { ...step, state: newState, orderMode });
 
@@ -107,9 +117,15 @@ export async function handleBuySellOrder(ctx, action) {
                 }
                 await saveUserStep(userId, {
                     ...step,
-                    pendingOrder: { mode, suiAmount, suiPercentage, type: "dca" },
+                    pendingOrder: { 
+                        mode, 
+                        suiAmount, 
+                        suiPercentage, 
+                        type: "dca" 
+                    },
                     state: "awaiting_dca_confirmation",
                 });
+                
                 try {
                     return showDcaConfirmation(ctx, userId, step, { mode, suiAmount });
                 } catch (err) {
