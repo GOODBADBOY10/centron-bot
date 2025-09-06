@@ -2,7 +2,7 @@ import { Telegraf } from "telegraf";
 import { session } from 'telegraf';
 import { handleAction } from "./handleAction.js";
 import { handleWallets } from "./handleWallets.js";
-import { fetchUserStep, getUser } from "./db.js";
+import { fetchUserStep, getUser, savePendingDcaOrder } from "./db.js";
 import { handleConfig } from "./handleConfig.js";
 import { handleReferrals } from "./handleReferrals.js";
 import { handleBuy } from "./handleBuy.js";
