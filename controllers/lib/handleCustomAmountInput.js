@@ -93,7 +93,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                     suiAmount,
                     suiPercentage,
                     intervalMinutes: step.dcaIntervalMinutes,
-                    times: step.times,
+                    times: step.times ?? 0,
                     duration: step.dcaDuration,
                     interval: step.dcaInterval,
                     slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
