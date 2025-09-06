@@ -84,7 +84,7 @@ export async function handleBuySellOrder(ctx, action) {
                     results.push(`❌ ${wallet.name || shortAddress(address)}: Missing trigger value.`);
                     continue;
                 }
-                
+
                 await savePendingLimitOrder({
                     userId,
                     walletAddress: address,
@@ -94,8 +94,8 @@ export async function handleBuySellOrder(ctx, action) {
                     suiPercentage,
                     triggerValue: step.limitTriggerValue,
                     slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
-                }); 
-                
+                });
+
                 const formattedTrigger = formatMarketCapValue(step.limitTriggerValue);
                 results.push(
                     `✅ Limit ${mode} order saved for <b>${amountStr}${mode === "buy" ? " SUI" : "%"}</b> and will trigger at <b>$${formattedTrigger}</b> market cap.`
@@ -110,7 +110,12 @@ export async function handleBuySellOrder(ctx, action) {
                     pendingOrder: { mode, suiAmount, suiPercentage, type: "dca" },
                     state: "awaiting_dca_confirmation",
                 });
-                return showDcaConfirmation(ctx, userId, step, { mode, suiAmount });
+                try {
+                    return showDcaConfirmation(ctx, userId, step, { mode, suiAmount });
+                } catch (err) {
+                    console.error("❌ DCA failure:", err);
+                    return ctx.reply("❌ Something went wrong with DCA order. Please try again.");
+                }
             } else if (isMarketOrder) {
                 const result = mode === "buy"
                     ? await buyTokenWithAftermath({ tokenAddress: step.tokenAddress, phrase, suiAmount, slippage: step.buySlippage })
