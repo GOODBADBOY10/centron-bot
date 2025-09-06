@@ -62,27 +62,6 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         const suiAmount = mode === "buy" ? toSmallestUnit(amount) : null;
         const suiPercentage = mode === "sell" ? Math.floor(amount, 10) : null;
 
-        // Build wallet list (multiple)
-        const walletList = (step.selectedWallets || [])
-            .map(w => {
-                const label = w.name || shortAddress(w.address);
-                return `💳 ${label}`;
-            })
-            .join("\n");
-
-        // Confirmation message
-        const confirmationMessage =
-            `You are about to submit a DCA order with following configuration:\n\n` +
-            `${mode.toUpperCase()} a total of ${amount} ${mode === "buy" ? "SUI" : "%"} ` +
-            `worth of $${step.tokenInfo?.symbol ?? "??"} through multiple payments ` +
-            `with interval ${step.dcaInterval} for a period of ${step.dcaDuration}\n\n` +
-            `Selected wallets:\n${walletList}`;
-
-        // Generate unique ID
-        const confirmId = crypto.randomBytes(6).toString("hex"); // 12 chars
-        const confirmKey = `confirm_dca_${confirmId}`;
-
-        // Save mapping (store all wallet addresses)
         // Normalize selected wallets into full objects
         const selectedWallets = (step.selectedWallets || []).map(k => {
             const wallet = step.walletMap?.[k];
@@ -101,8 +80,27 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             return null;
         }).filter(Boolean);
 
+        // Build wallet list (multiple)
+        const walletList = selectedWallets
+            .map(w => {
+                const label = w.name || shortAddress(w.address);
+                return `💳 ${label}`;
+            })
+            .join("\n");
+
+        // Confirmation message
+        const confirmationMessage =
+            `You are about to submit a DCA order with following configuration:\n\n` +
+            `${mode.toUpperCase()} a total of ${amount} ${mode === "buy" ? "SUI" : "%"} ` +
+            `worth of $${step.tokenInfo?.symbol ?? "??"} through multiple payments ` +
+            `with interval ${step.dcaInterval} for a period of ${step.dcaDuration}\n\n` +
+            `Selected wallets:\n${walletList}`;
+
+        // Generate unique ID
+        const confirmId = crypto.randomBytes(6).toString("hex"); // 12 chars
+        const confirmKey = `confirm_dca_${confirmId}`;
+
         // Save mapping (store all wallet addresses safely)
-        console.log("selectedWallets:", selectedWallets);
         await saveUserStep(userId, {
             ...step,
             dcaConfirmations: {
@@ -121,28 +119,6 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                 },
             },
         });
-
-        // await saveUserStep(userId, {
-        //     ...step,
-        //     dcaConfirmations: {
-        //         ...(step.dcaConfirmations || {}),
-        //         [confirmId]: {
-        //             mode,
-        //             tokenAddress,
-        //             suiAmount,
-        //             suiPercentage,
-        //             intervalMinutes: step.dcaIntervalMinutes,
-        //             times: step.times ?? 0,
-        //             duration: step.dcaDuration,
-        //             interval: step.dcaInterval,
-        //             slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
-        //             walletAddresses: (step.selectedWallets || [])
-        //                 .map(w => w?.address)
-        //                 .filter(addr => typeof addr === "string" && addr.length > 0),
-        //             // walletAddresses: (step.selectedWallets || []).map(w => w.address), // 🔹 all wallets
-        //         },
-        //     },
-        // });
 
         const confirmationKeyboard = {
             inline_keyboard: [
