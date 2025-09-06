@@ -151,6 +151,13 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
   const tokenAddress = step.tokenMap[`token_${tokenIndex}`];
 
   const { limitOrders, dcaOrders } = await getUserOrders(userId);
+  console.log("📦 Limit orders from DB:", JSON.stringify(limitOrders, null, 2));
+  console.log("📦 DCA orders from DB:", JSON.stringify(dcaOrders, null, 2));
+  console.log("🔑 walletIndex:", walletIndex, "→ walletMap:", step.walletMap);
+  console.log("🎯 tokenIndex:", tokenIndex, "→ tokenMap:", step.tokenMap);
+  console.log("👉 walletAddress (resolved):", walletAddress);
+  console.log("👉 tokenAddress (resolved):", tokenAddress);
+
 
   const walletLimit = limitOrders.filter(o => o.walletAddress === walletAddress && o.tokenAddress === tokenAddress);
   const walletDca = dcaOrders.filter(o => o.walletAddress === walletAddress && o.tokenAddress === tokenAddress);
