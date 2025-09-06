@@ -94,7 +94,6 @@ export async function handleBuySellOrder(ctx, action) {
                     results.push(`❌ ${wallet.name || shortAddress(address)}: Missing trigger value.`);
                     continue;
                 }
-                console.log("💾 Saving limit order:");
                 await savePendingLimitOrder({
                     userId,
                     walletAddress: address,
