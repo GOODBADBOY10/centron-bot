@@ -30,6 +30,7 @@ import { decryptWallet } from "./generateWallet.js";
 import { shortAddress } from "./shortAddress.js";
 import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/aftermath.js";
 import { getFallbackTokenDetails } from "../../utils/getTokenDetails.js";
+import { Dca } from "aftermath-ts-sdk/dist/packages/dca/dca.js";
 
 export function removeUndefined(obj) {
     return Object.fromEntries(
@@ -386,7 +387,12 @@ export async function handleAction(ctx, action, userId) {
         case /^buy_x(:limit|:market|:dca)?$/.test(action):
         case /^sell_\d+(:limit|:market|:dca)?$/.test(action):
         case /^sell_x(:limit|:market|:dca)?$/.test(action): {
-            await handleBuySellOrder(ctx, action);
+            console.log(`action: ${action}`);
+            try {
+                await handleBuySellOrder(ctx, action);
+            } catch (error) {
+                console.error("Error handling in the action of Dca", error)
+            }
             break;
         }
 

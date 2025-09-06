@@ -630,11 +630,12 @@ bot.on("callback_query", async (ctx) => {
   try {
     await ctx.answerCbQuery();
   } catch (e) {
-    console.warn("⚠️ Failed to answer callback query:", e.message);
+    console.warn("Failed to answer callback query:", e.message);
   }
   try {
     await handleAction(ctx, data, userId);
   } catch (err) {
+    console.error("Error in handle action", err);
     await ctx.reply("Something went wrong. Please try again.");
   }
 });
