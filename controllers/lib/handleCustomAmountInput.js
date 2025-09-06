@@ -84,6 +84,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
 
         // Save mapping (store all wallet addresses)
         console.log("step.selectedWallets:", step.selectedWallets);
+        console.log("walletMap:", step.walletMap);
         await saveUserStep(userId, {
             ...step,
             dcaConfirmations: {

@@ -24,6 +24,7 @@ import { decryptWallet } from "./generateWallet.js";
 import { handleCancel } from "./handleCancel.js";
 import { formatDuration, formatSui } from "../manageOrders/formater.js";
 import { checkUserOrders, getUserOrders, showWalletsForOrders } from "../manageOrders/limitAndDca.js";
+import { shortAddress } from "./shortAddress.js";
 
 export const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
@@ -308,6 +309,7 @@ bot.action(/^confirm_dca_(.+)$/, async (ctx) => {
     return ctx.reply("❌ Something went wrong while saving your DCA order.");
   }
 });
+
 
 function normalize(seed) {
   return seed
