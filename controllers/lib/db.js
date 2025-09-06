@@ -473,7 +473,7 @@ export async function savePendingLimitOrder(order) {
         const orderRef = db.collection('limitOrders').doc(orderId);
 
         const orderData = {
-            userId: order.userId,
+            userId: String(order.userId),
             walletAddress: order.walletAddress,
             tokenAddress: order.tokenAddress,
             mode: order.mode,
