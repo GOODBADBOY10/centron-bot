@@ -83,6 +83,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         const confirmKey = `confirm_dca_${confirmId}`;
 
         // Save mapping (store all wallet addresses)
+        console.log("step.selectedWallets:", step.selectedWallets);
         await saveUserStep(userId, {
             ...step,
             dcaConfirmations: {
@@ -97,7 +98,10 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                     duration: step.dcaDuration,
                     interval: step.dcaInterval,
                     slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
-                    walletAddresses: (step.selectedWallets || []).map(w => w.address), // 🔹 all wallets
+                    walletAddresses: (step.selectedWallets || [])
+                        .map(w => w?.address)
+                        .filter(addr => typeof addr === "string" && addr.length > 0),
+                    // walletAddresses: (step.selectedWallets || []).map(w => w.address), // 🔹 all wallets
                 },
             },
         });
