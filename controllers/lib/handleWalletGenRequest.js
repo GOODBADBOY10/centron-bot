@@ -1,5 +1,6 @@
 import { generateNewWallet } from "./genNewWallet.js";
-import { addWalletToUser } from "./db.js"
+import { addWalletToUser, saveUserStep } from "./db.js"
+import { encryptWallet } from "./generateWallet.js";
 
 export async function handleWalletGenerationRequest(ctx, userId) {
     try {
@@ -52,6 +53,6 @@ export async function handleWalletGenerationRequest(ctx, userId) {
 
         await saveUserStep(userId, null); // Clear the step
     } catch (error) {
-        await ctx.reply("⚠️ An error occurred while generating wallets. Please try again later.", error);
+        await ctx.reply("⚠️ An error occurred while generating wallets. Please try again later.");
     }
 }

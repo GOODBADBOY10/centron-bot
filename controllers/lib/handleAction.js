@@ -145,24 +145,12 @@ export async function handleAction(ctx, action, userId) {
         }
 
         case action === "x_new_wallets": {
-             
-            await saveUserStep(userId, {
-                state: "awaiting_wallet_generation_count",
-                flow: "generate_wallets"
-            });
-
-            await ctx.reply("How many wallets would you like to generate? (Maximum 10)", {
-                reply_markup: {
-                    force_reply: true
-                }
-            });
-
-            // try {
-                // await promptNewWalletsCount(ctx);
-            // } catch (error) {
-                // console.error('Error in generating multiple wallets', error);
-            // }
-            // break;
+            try {
+                await promptNewWalletsCount(ctx);
+            } catch (error) {
+                console.error('Error in generating multiple wallets', error);
+            }
+            break;
         }
 
         case action === "back_to_menu": {
