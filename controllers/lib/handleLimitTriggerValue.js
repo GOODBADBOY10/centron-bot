@@ -230,13 +230,13 @@ export async function handleDcaInput(ctx, step) {
     });
 
 
-    if (step.dcaDurationMinutes) {
-        text += `⏱ Total Duration: ${step.dcaDurationMinutes} minutes\n`;
-    }
+    // if (step.dcaDurationMinutes) {
+    //     text += `⏱ Total Duration: ${step.dcaDurationMinutes} minutes\n`;
+    // }
 
-    if (step.dcaIntervalMinutes) {
-        text += `🔁 Interval: ${step.dcaIntervalMinutes} minutes\n`;
-    }
+    // if (step.dcaIntervalMinutes) {
+    //     text += `🔁 Interval: ${step.dcaIntervalMinutes} minutes\n`;
+    // }
 
     text += `\n📘 <a href="https://example.com/how-to-use">How to Use?</a>`;
 
