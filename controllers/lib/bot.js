@@ -25,6 +25,7 @@ import { handleCancel } from "./handleCancel.js";
 import { formatDuration, formatSui } from "../manageOrders/formater.js";
 import { checkUserOrders, getUserOrders, showWalletsForOrders } from "../manageOrders/limitAndDca.js";
 import { shortAddress } from "./shortAddress.js";
+import { formatDurationPretty } from "./helper.js";
 
 export const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
@@ -247,8 +248,16 @@ bot.action("confirm_dca", async (ctx) => {
 
     results.push(
       `✅ DCA ${mode.toUpperCase()} order saved for ${amountText} into $${step.tokenInfo?.symbol ?? "??"} ` +
-      `with payments every ${step.dcaInterval} for ${step.dcaDuration} (${wallet.name || shortAddress(wallet.address)})`
+      `with payments every ${formatDurationPretty(step.dcaIntervalMinutes)} ` +
+      `for ${formatDurationPretty(step.dcaDurationMinutes)} (${wallet.name || shortAddress(wallet.address)})`
     );
+
+
+    // results.push(
+    //   `✅ DCA ${mode.toUpperCase()} order saved for ${amountText} into $${step.tokenInfo?.symbol ?? "??"} ` +
+    //   `with payments every ${step.dcaInterval} for ${step.dcaDuration} (${wallet.name || shortAddress(wallet.address)})`
+    // );
+
   }
 
   await ctx.editMessageText(results.join("\n"), { parse_mode: "HTML" });
@@ -301,7 +310,7 @@ bot.action(/^confirm_dca_(.+)$/, async (ctx) => {
       `✅ DCA ${mode.toUpperCase()} order saved for ` +
       `${suiAmount ? (suiAmount / 1e9) + " SUI" : suiPercentage + "%"}` +
       ` into $${step.tokenInfo?.symbol ?? "??"} ` +
-      `with payments every ${interval} for ${duration}`,
+      `with payments every ${formatDurationPretty(interval)} for ${formatDurationPretty(duration)}`,
       { parse_mode: "HTML" }
     );
 

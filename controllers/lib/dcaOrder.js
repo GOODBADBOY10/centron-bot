@@ -1,5 +1,6 @@
 import { getUser, saveUserStep, fetchUserStep } from "./db.js";
 import { buildDcaKeyboard } from "./handleLimitKeyboard.js";
+import { formatDurationPretty } from "./helper.js";
 import { shortAddress } from "./shortAddress.js";
 
 export const handleDcaOrder = async (ctx) => {
@@ -258,14 +259,19 @@ export async function showDcaConfirmation(ctx, userId, step, { mode, suiAmount }
     ).join("\n");
 
     const action = mode.toUpperCase();
-    const amountReadable = suiAmount ? suiAmount / 1e9 : step.dcaAmount; // adjust based on how you store amounts
+
+    const amountReadable = suiAmount
+        ? `${suiAmount / 1e9} SUI`
+        : `${step.dcaAmount}%`;
+
+    // const amountReadable = suiAmount ? suiAmount / 1e9 : step.dcaAmount; // adjust based on how you store amounts
 
     const text =
         `You are about to submit a DCA order with following configuration:\n\n` +
         `${action.toUpperCase()} a total of ${amountReadable} ${mode === "buy" ? "SUI" : "%"} ` +
         `worth of $${tokenInfo.symbol} through multiple payments ` +
-        `with interval ${dcaInterval} for a period of ${dcaDuration}\n\n` +
-        `Selected wallets: ${walletList}`;
+        `with interval ${formatDurationPretty(dcaInterval)} for a period of ${formatDurationPretty(dcaDuration)}\n\n` +
+        `Selected wallets:\n${walletList}`;
 
 
     const keyboard = {

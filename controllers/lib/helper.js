@@ -1,28 +1,13 @@
-function errorHandler(error, name, from) {
-    let loggerFunction = console.log;
-    loggerFunction("---------------START----------");
-    loggerFunction("Error occured in " + name);
+export function formatDurationPretty(minutes) {
+    if (!minutes) return "-";
+    const d = Math.floor(minutes / 1440);
+    const h = Math.floor((minutes % 1440) / 60);
+    const m = minutes % 60;
 
+    let parts = [];
+    if (d) parts.push(`${d}d`);
+    if (h) parts.push(`${h}h`);
+    if (m) parts.push(`${m}m`);
 
-    if ( from === "axios") {
-        if (error.response) {
-            loggerFunction(error.response.data);
-            loggerFunction(error.response.status);
-            loggerFunction(error.response.headers);
-        } else if (error.request) {
-            loggerFunction(error.request);
-        } else {
-        loggerFunction("Error", error.message);
-        }
-
-        loggerFunction(error.toJSON());
-    } else {
-        loggerFunction(error);
-    }
-
-    loggerFunction("---------END----------");
+    return parts.join(" ") || `${minutes}m`;
 }
-
-module.exports = {
-    errorHandler
-};
