@@ -65,12 +65,24 @@ export const handleDcaOrder = async (ctx) => {
 
         text += `📘 <a href="https://example.com/how-to-use">How to Use?</a>`;
 
+        // Mark flow
+        step.currentFlow = "dca";
+        step.isInDcaFlow = true;
+        step.orderMode = "dca";
+        step.mode = step.mode || "buy";
+
+        // ✅ reset here before keyboard is built
+        step.dcaDuration = null;
+        step.dcaInterval = null;
+        step.dcaDurationMinutes = null;
+        step.dcaIntervalMinutes = null;
+
         const keyboard = {
             inline_keyboard: buildDcaKeyboard(
                 selectedWallets,
                 wallets,
                 step.showAllWallets ?? false,
-                mode,
+                step.mode,
                 {
                     duration: step.dcaDuration,
                     interval: step.dcaInterval
@@ -78,12 +90,26 @@ export const handleDcaOrder = async (ctx) => {
             )
         };
 
-        step.currentFlow = "dca";
-        step.isInDcaFlow = true;
-        step.orderMode = "dca";
-        step.mode = step.mode || "buy";
-        step.dcaDuration = null;
-        step.dcaInterval = null;
+
+        // const keyboard = {
+        //     inline_keyboard: buildDcaKeyboard(
+        //         selectedWallets,
+        //         wallets,
+        //         step.showAllWallets ?? false,
+        //         mode,
+        //         {
+        //             duration: step.dcaDuration,
+        //             interval: step.dcaInterval
+        //         }
+        //     )
+        // };
+
+        // step.currentFlow = "dca";
+        // step.isInDcaFlow = true;
+        // step.orderMode = "dca";
+        // step.mode = step.mode || "buy";
+        // step.dcaDuration = null;
+        // step.dcaInterval = null;
 
         await saveUserStep(userId, step);
 
@@ -147,9 +173,13 @@ export async function renderDcaMessage(ctx, userId, step) {
             step.showAllWallets ?? false,
             mode,
             {
-                duration: step.dcaDuration,
-                interval: step.dcaInterval,
+                duration: null,
+                interval: null,
             }
+            // {
+            //     duration: step.dcaDuration,
+            //     interval: step.dcaInterval,
+            // }
         )
     };
 

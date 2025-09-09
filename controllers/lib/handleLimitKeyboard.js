@@ -6,6 +6,24 @@ import { formatPrice, formatTinyPrice } from "../../utils/getTokenDetails.js";
 import { buildWalletMap, normalizeWallets } from "../../utils/formaterLine.js"
 import { formatWalletBalanceRow } from "../../utils/formatWalletBalanceRow.js";
 
+
+function formatDurationLabel(minutes) {
+    if (!minutes || minutes <= 0) return "-";
+
+    const days = Math.floor(minutes / (24 * 60));
+    const hours = Math.floor((minutes % (24 * 60)) / 60);
+    const mins = minutes % 60;
+
+    let parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (mins > 0) parts.push(`${mins}m`);
+
+    return parts.join(" ") || "-";
+}
+
+
+
 export function buildLimitOrderKeyboard(selectedWallets, allWallets, mode = "buy", value, showAll = false) {
     const selectedKeys = new Set(selectedWallets);
 
@@ -315,3 +333,13 @@ export function buildDcaKeyboard(
 
     return rows;
 }
+
+
+// {
+//     text: `Duration: ${formatDurationLabel(duration)}`,
+//     callback_data: "dca_set_duration"
+// },
+// {
+//     text: `Interval: ${formatDurationLabel(interval)}`,
+//     callback_data: "dca_set_interval"
+// }

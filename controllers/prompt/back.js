@@ -9,7 +9,14 @@ export async function handleBackAction(ctx) {
     // Exit limit order flow cleanly
     delete step.isInLimitFlow;
     delete step.limitTriggerValue;
+    
+    // Exit DCA flow cleanly
+    delete step.dcaDuration;
+    delete step.dcaInterval;
+    delete step.dcaDurationMinutes;
+    delete step.dcaIntervalMinutes;
     step.currentFlow = null;
+    // step.showAllWallets = false; // optional reset
 
     // ✅ DO NOT delete tokenInfo or mode — required for re-render
     await saveUserStep(userId, step);
