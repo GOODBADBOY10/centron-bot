@@ -145,7 +145,11 @@ export async function handleAction(ctx, action, userId) {
         }
 
         case action === "x_new_wallets": {
-            await promptNewWalletsCount(ctx);
+            try {
+                await promptNewWalletsCount(ctx);
+            } catch (error) {
+                console.error('Error in generating multiple wallets', error);
+            }
             break;
         }
 
