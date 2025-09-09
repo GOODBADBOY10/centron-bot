@@ -52,6 +52,6 @@ export async function handleWalletGenerationRequest(ctx, userId) {
 
         await saveUserStep(userId, null); // Clear the step
     } catch (error) {
-        await ctx.reply("⚠️ An error occurred while generating wallets. Please try again later.");
+        await ctx.reply("⚠️ An error occurred while generating wallets. Please try again later.", error);
     }
 }
