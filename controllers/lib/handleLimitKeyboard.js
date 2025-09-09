@@ -308,11 +308,11 @@ export function buildDcaKeyboard(
 
     rows.push([
         {
-            text: `Duration: ${duration ? `${duration}m` : '-'}`,
+            text: `Duration: ${formatDurationLabel(duration)}`,
             callback_data: "dca_set_duration"
         },
         {
-            text: `Interval: ${interval ? `${interval}m` : '-'}`,
+            text: `Interval: ${formatDurationLabel(interval)}`,
             callback_data: "dca_set_interval"
         }
     ]);
@@ -334,12 +334,11 @@ export function buildDcaKeyboard(
     return rows;
 }
 
-
-// {
-//     text: `Duration: ${formatDurationLabel(duration)}`,
-//     callback_data: "dca_set_duration"
-// },
-// {
-//     text: `Interval: ${formatDurationLabel(interval)}`,
-//     callback_data: "dca_set_interval"
-// }
+//  {
+//             text: `Duration: ${duration ? `${duration}m` : '-'}`,
+//             callback_data: "dca_set_duration"
+//         },
+//         {
+//             text: `Interval: ${interval ? `${interval}m` : '-'}`,
+//             callback_data: "dca_set_interval"
+//         }
