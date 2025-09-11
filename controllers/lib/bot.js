@@ -132,11 +132,15 @@ bot.action(/^view_orders_idx_(\d+)$/, async (ctx) => {
   keyboard.push([{ text: "← Back", callback_data: "manage_orders" }]);
 
   // Message header
-  const msg = `Select a token to see a list of active Limit & DCA Orders for ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}:`;
+  const walletLink = `<a href="https://suiexplorer.com/address/${walletAddress}?network=mainnet">${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}</a>`;
+  const msg = `Select a token to see a list of active Limit & DCA Orders for ${walletLink}:`;
 
   await ctx.editMessageText(msg, {
     parse_mode: "HTML",
-    reply_markup: { inline_keyboard: keyboard }
+    disable_web_page_preview: true,
+    reply_markup: {
+      inline_keyboard: keyboard
+    }
   });
 
 });
@@ -170,7 +174,8 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
   msg += `SELL:\n${sellLimit.length > 0 ? sellLimit.map(o => `<b>${formatSui(o.suiAmount)}</b> SUI at <b>$${o.triggerValue}</b>`).join("\n") : "No sell orders."}\n\n`;
 
   // DCA Orders
-  msg += `${tokenName} - <b>DCA Orders</b> for ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}\n\n`;
+  // msg += `${tokenName} - <b>DCA Orders</b> for ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}\n\n`;
+  msg += `${tokenName} - <b>DCA Orders</b> for ${walletLink}\n\n`;
   const buyDca = walletDca.filter(o => o.mode.toLowerCase() === "buy");
   const sellDca = walletDca.filter(o => o.mode.toLowerCase() === "sell");
 
@@ -217,7 +222,10 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
 
   const edited = await ctx.editMessageText(msg, {
     parse_mode: "HTML",
-    reply_markup: { inline_keyboard: keyboard }
+    reply_markup: {
+      inline_keyboard: keyboard
+    },
+    disable_web_page_preview: true
   });
 
   // Save message id in step so we can re-edit it later from limit_order/dca_order

@@ -286,5 +286,9 @@ export async function showDcaConfirmation(ctx, userId, step, { mode, suiAmount }
         ]
     };
 
-    return ctx.reply(text, { parse_mode: "HTML", reply_markup: keyboard });
+    return ctx.reply(text, {
+        parse_mode: "HTML",
+        reply_markup: keyboard,
+        disable_web_page_preview: true
+    });
 }
