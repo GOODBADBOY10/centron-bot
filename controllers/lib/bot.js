@@ -200,14 +200,17 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
   const keyboard = [
     [
       { text: "➕ Limit Order", callback_data: "limit_order" },
+      // { text: "➕ Limit Order", callback_data: "" },
       { text: "➕ DCA Order", callback_data: "dca_order" },
+      // { text: "➕ DCA Order", callback_data: "" },
     ],
     [
       { text: "← Back", callback_data: `view_orders_idx_${walletIndex}` }
     ]
   ];
 
-  await ctx.editMessageText(msg, {
+  // await ctx.editMessageText(msg, {
+  await ctx.reply(msg, {
     parse_mode: "HTML",
     reply_markup: { inline_keyboard: keyboard }
   });
