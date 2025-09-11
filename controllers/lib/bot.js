@@ -209,11 +209,28 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
     ]
   ];
 
-  await ctx.answerCbQuery();
-  await ctx.editMessageText(msg, {
+  // await ctx.answerCbQuery();
+  // await ctx.editMessageText(msg, {
+  //   parse_mode: "HTML",
+  //   reply_markup: { inline_keyboard: keyboard }
+  // });
+
+  const edited = await ctx.editMessageText(msg, {
     parse_mode: "HTML",
     reply_markup: { inline_keyboard: keyboard }
   });
+
+  // Save message id in step so we can re-edit it later from limit_order/dca_order
+  await saveUserStep(userId, {
+    ...step,
+    state: "viewing_token_orders",
+    walletMap: step.walletMap,
+    tokenMap: step.tokenMap,
+    mainMessageId: ctx.callbackQuery.message.message_id,  // 👈 use the id of the message we just edited
+    currentToken: tokenAddress,
+    currentWallet: walletAddress
+  });
+
 });
 
 
