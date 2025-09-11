@@ -158,7 +158,9 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
 
   const tokenName = tokenAddress.split("::").pop();
 
-  let msg = `${tokenName} - <b>Limit Orders</b> for ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}\n\n`;
+  const walletLink = `<a href="https://suiexplorer.com/address/${walletAddress}?network=mainnet">${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}</a>`;
+
+  let msg = `${tokenName} - <b>Limit Orders</b> for ${walletLink}\n\n`;
 
   // Limit Orders
   const buyLimit = walletLimit.filter(o => o.mode.toLowerCase() === "buy");
@@ -200,9 +202,7 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
   const keyboard = [
     [
       { text: "➕ Limit Order", callback_data: "limit_order" },
-      // { text: "➕ Limit Order", callback_data: "" },
       { text: "➕ DCA Order", callback_data: "dca_order" },
-      // { text: "➕ DCA Order", callback_data: "" },
     ],
     [
       { text: "← Back", callback_data: `view_orders_idx_${walletIndex}` }
@@ -267,9 +267,9 @@ bot.action("confirm_dca", async (ctx) => {
       : suiPercentage + "%";
 
     results.push(
-      `✅ DCA ${mode.toUpperCase()} order saved for ${amountText} into $${step.tokenInfo?.symbol ?? "??"} ` +
-      `with payments every ${formatDurationPretty(step.dcaIntervalMinutes)} ` +
-      `for ${formatDurationPretty(step.dcaDurationMinutes)} (${wallet.name || shortAddress(wallet.address)})`
+      `✅ DCA ${mode} order saved for <b>${amountText}</b> into $${step.tokenInfo?.symbol ?? "??"} ` +
+      `with payments every <b>${formatDurationPretty(step.dcaIntervalMinutes)}</b> ` +
+      `for <b>${formatDurationPretty(step.dcaDurationMinutes)}</b>`
     );
 
 
@@ -327,11 +327,12 @@ bot.action(/^confirm_dca_(.+)$/, async (ctx) => {
       .join("\n");
 
     await ctx.editMessageText(
-      `✅ DCA ${mode.toUpperCase()} order saved for ` +
+      `✅ DCA <b>${mode}</b> order saved for ` +
       `${suiAmount ? (suiAmount / 1e9) + " SUI" : suiPercentage + "%"}` +
       ` into $${step.tokenInfo?.symbol ?? "??"} ` +
-      `with payments every ${formatDurationPretty(interval)} for ${formatDurationPretty(duration)}`,
+      `with payments every <b>${formatDurationPretty(interval)}</b> for <b>${formatDurationPretty(duration)}</b>`,
       { parse_mode: "HTML" }
+
     );
 
   } catch (err) {

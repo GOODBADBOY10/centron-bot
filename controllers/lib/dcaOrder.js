@@ -254,9 +254,14 @@ export async function showDcaConfirmation(ctx, userId, step, { mode, suiAmount }
     const { dcaDuration, dcaInterval, tokenInfo, selectedWallets, walletMap } = step;
 
     const wallets = selectedWallets.map(k => walletMap[k]);
+
     const walletList = wallets.map(
-        w => `💳 ${w.name || w.address.slice(0, 6) + "..." + w.address.slice(-4)}`
+        (w) => `<a href="https://suiexplorer.com/address/${w.address || w.walletAddress}?network=mainnet">💳 ${w.name || w.address.slice(0, 4) + "..." + w.address.slice(-4)}</a>`
     ).join("\n");
+
+    // const walletList = wallets.map(
+    // w => `💳 ${w.name || w.address.slice(0, 6) + "..." + w.address.slice(-4)}`
+    // ).join("\n");
 
     const action = mode.toUpperCase();
 
@@ -264,13 +269,11 @@ export async function showDcaConfirmation(ctx, userId, step, { mode, suiAmount }
         ? `${suiAmount / 1e9} SUI`
         : `${step.dcaAmount}%`;
 
-    // const amountReadable = suiAmount ? suiAmount / 1e9 : step.dcaAmount; // adjust based on how you store amounts
-
     const text =
         `You are about to submit a DCA order with following configuration:\n\n` +
-        `${action.toUpperCase()} a total of ${amountReadable} ${mode === "buy" ? "SUI" : "%"} ` +
+        `<b>${action.toUpperCase()} a total of ${amountReadable} ${mode === "buy" ? "SUI" : "%"}</b>` +
         `worth of $${tokenInfo.symbol} through multiple payments ` +
-        `with interval ${formatDurationPretty(dcaInterval)} for a period of ${formatDurationPretty(dcaDuration)}\n\n` +
+        `with interval <b>${formatDurationPretty(dcaInterval)}</b> for a period of <b>${formatDurationPretty(dcaDuration)}</b>\n\n` +
         `Selected wallets:\n${walletList}`;
 
 

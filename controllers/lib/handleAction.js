@@ -307,6 +307,17 @@ export async function handleAction(ctx, action, userId) {
             return handleCancelToMain(ctx);
         }
 
+        case action === "nool": {
+            try {
+                await ctx.deleteMessage();
+                // optional: go back to previous menu
+                // await showPreviousMenu(ctx, ctx.from.id);
+            } catch (err) {
+                console.error("Failed to delete message:", err);
+            }
+            break;
+        }
+
         default:
             return await ctx.reply("⚠️ Unknown command.");
     }
