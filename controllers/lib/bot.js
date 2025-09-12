@@ -26,6 +26,7 @@ import { formatDuration, formatSui } from "../manageOrders/formater.js";
 import { checkUserOrders, getUserOrders, showWalletsForOrders } from "../manageOrders/limitAndDca.js";
 import { shortAddress } from "./shortAddress.js";
 import { formatDurationPretty } from "./helper.js";
+import { getBalance } from "./getBalance.js";
 
 export const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
@@ -86,16 +87,19 @@ bot.action(/^view_orders_idx_(\d+)$/, async (ctx) => {
   const step = await fetchUserStep(userId);
   const walletAddress = step.walletMap[`wallet_${index}`];
 
-  // --- ADD THIS CHECK ---
-  const wallet = step.walletMap[`wallet_${index}`];
-  console.log('wallet', wallet);
-  const suiBalance = Number(wallet?.balances?.sui ?? 0);
-  if (suiBalance <= 0) {
+  // --- FETCH BALANCE DYNAMICALLY ---
+  const balance = await getBalance(walletAddress);
+  console.log('balance', balance, balance?.sui);
+  if (!balance || Number(balance.sui) <= 0) {
     return ctx.answerCbQuery(
-      "⚠️ This wallet has no SUI and cannot place or view orders.",
+      "You do not have any limit or DCA orders yet",
       { show_alert: true }
     );
   }
+
+  // --- ADD THIS CHECK ---
+  // const wallet = step.walletMap[`wallet_${index}`];
+  // console.log('wallet', wallet);
 
   const { limitOrders, dcaOrders } = await getUserOrders(userId);
 
