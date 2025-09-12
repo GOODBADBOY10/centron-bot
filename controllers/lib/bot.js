@@ -89,7 +89,6 @@ bot.action(/^view_orders_idx_(\d+)$/, async (ctx) => {
 
   // --- FETCH BALANCE DYNAMICALLY ---
   const balance = await getBalance(walletAddress);
-  console.log('balance', balance, balance?.sui);
   if (!balance || Number(balance.sui) <= 0) {
     return ctx.answerCbQuery(
       "You do not have any limit or DCA orders yet",
