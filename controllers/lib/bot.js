@@ -86,6 +86,17 @@ bot.action(/^view_orders_idx_(\d+)$/, async (ctx) => {
   const step = await fetchUserStep(userId);
   const walletAddress = step.walletMap[`wallet_${index}`];
 
+  // --- ADD THIS CHECK ---
+  const wallet = step.walletMap[`wallet_${index}`];
+  console.log('wallet', wallet);
+  const suiBalance = Number(wallet?.balances?.sui ?? 0);
+  if (suiBalance <= 0) {
+    return ctx.answerCbQuery(
+      "⚠️ This wallet has no SUI and cannot place or view orders.",
+      { show_alert: true }
+    );
+  }
+
   const { limitOrders, dcaOrders } = await getUserOrders(userId);
 
   const walletLimit = limitOrders.filter(o => o.walletAddress === walletAddress);
@@ -144,6 +155,8 @@ bot.action(/^view_orders_idx_(\d+)$/, async (ctx) => {
   });
 
 });
+
+
 
 
 bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
