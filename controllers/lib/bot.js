@@ -96,9 +96,7 @@ bot.action(/^view_orders_idx_(\d+)$/, async (ctx) => {
     );
   }
 
-  // --- ADD THIS CHECK ---
   // const wallet = step.walletMap[`wallet_${index}`];
-  // console.log('wallet', wallet);
 
   const { limitOrders, dcaOrders } = await getUserOrders(userId);
 
@@ -158,9 +156,6 @@ bot.action(/^view_orders_idx_(\d+)$/, async (ctx) => {
   });
 
 });
-
-
-
 
 bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
   const userId = ctx.from.id;
