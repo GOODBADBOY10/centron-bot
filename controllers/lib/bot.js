@@ -170,6 +170,7 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
 
   const walletLimit = limitOrders.filter(o => o.walletAddress === walletAddress && o.tokenAddress === tokenAddress);
   const walletDca = dcaOrders.filter(o => o.walletAddress === walletAddress && o.tokenAddress === tokenAddress);
+  console.log("wallet of dca", walletDca);
 
   const tokenName = tokenAddress.split("::").pop();
 
@@ -188,6 +189,7 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
   // msg += `${tokenName} - <b>DCA Orders</b> for ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}\n\n`;
   msg += `${tokenName} - <b>DCA Orders</b> for ${walletLink}\n\n`;
   const buyDca = walletDca.filter(o => o.mode.toLowerCase() === "buy");
+  console.log("buyDca", buyDca);
   const sellDca = walletDca.filter(o => o.mode.toLowerCase() === "sell");
 
   // BUY summary
