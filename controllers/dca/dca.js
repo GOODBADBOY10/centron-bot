@@ -21,7 +21,10 @@ export async function checkPendingDcaOrders() {
 
             const user = await getUser(order.userId);
             const wallet = user.wallets?.find(w => w.address?.toLowerCase() === order.walletAddress?.toLowerCase());
-            if (!wallet) return ctx.reply("❌ Wallet not found.");
+            if (!wallet) {
+                console.warn(`⚠️ Wallet not found for address ${order.walletAddress}`);
+                continue;
+            }
             const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET;
             let phrase;
             try {

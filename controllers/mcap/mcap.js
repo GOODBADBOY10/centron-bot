@@ -45,6 +45,7 @@ export async function checkPendingMcapOrders() {
             }
             if (!phrase) {
                 console.warn(`⚠️ Missing phrase for wallet ${order.walletAddress}`);
+                // console.warn(`⚠️ Missing phrase for wallet ${order.walletAddress}`);
                 continue;
             }
 
