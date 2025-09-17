@@ -3,6 +3,7 @@ import { markDcaOrderAsCompleted } from "../lib/db.js";
 import { getAllPendingDcaOrders } from "../lib/db.js";
 import { buyTokenWithAftermath, sellTokenWithAftermath } from "../aftermath/aftermath.js"
 import { bot } from "../lib/bot.js"
+import { decryptWallet } from "../lib/generateWallet.js";
 
 export async function checkPendingDcaOrders() {
     const orders = await getAllPendingDcaOrders(); // Only active orders
@@ -20,13 +21,21 @@ export async function checkPendingDcaOrders() {
 
             const user = await getUser(order.userId);
             const wallet = user.wallets?.find(w => w.address?.toLowerCase() === order.walletAddress?.toLowerCase());
-            const phrase = wallet?.seedPhrase || wallet?.privateKey;
-
+            if (!wallet) return ctx.reply("❌ Wallet not found.");
+            const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET;
+            let phrase;
+            try {
+                const encrypted = wallet?.seedPhrase || wallet?.privateKey;
+                const decrypted = decryptWallet(encrypted, ENCRYPTION_SECRET);
+                phrase = typeof decrypted === "string" ? decrypted : decrypted.privateKey || decrypted.seedPhrase;
+            } catch (err) {
+                console.error('failed to decrypt wallet', err);
+            }
+            // const phrase = wallet?.seedPhrase || wallet?.privateKey;
             if (!phrase) {
                 console.warn(`⚠️ Missing phrase for wallet ${order.walletAddress}`);
                 continue;
             }
-
             // Perform the DCA order
             // After executing the buy/sell
             let tx;

@@ -8,8 +8,6 @@ import { isValidSuiAddress } from '@mysten/sui.js/utils';
 import { decodeSuiPrivateKeyLocal } from "../lib/withdrawSui.js";
 import { decryptWallet } from "../lib/generateWallet.js"
 
-
-
 const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
 
 
