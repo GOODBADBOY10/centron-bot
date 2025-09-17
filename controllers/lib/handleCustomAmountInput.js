@@ -7,6 +7,7 @@ import { toSmallestUnit } from "./suiAmount.js";
 import { shortAddress } from "./shortAddress.js";
 import { formatMarketCapValue } from "../mcap/formatMarketCap.js"
 import crypto from "crypto";
+import { formatDurationPretty } from "./helper.js";
 
 export async function handleCustomAmountInput(ctx, step, userId) {
     const amount = parseFloat(ctx.message.text);
@@ -62,6 +63,10 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         const suiAmount = mode === "buy" ? toSmallestUnit(amount) : null;
         const suiPercentage = mode === "sell" ? Math.floor(amount, 10) : null;
 
+        const amountReadable = suiAmount
+            ? `${suiAmount / 1e9} SUI`
+            : `${step.dcaAmount}%`;
+
         // Normalize selected wallets into full objects
         const selectedWallets = (step.selectedWallets || []).map(k => {
             const wallet = step.walletMap?.[k];
@@ -80,14 +85,6 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             return null;
         }).filter(Boolean);
 
-        // Build wallet list (multiple)
-        // const walletList = selectedWallets
-        //     .map(w => {
-        //         const label = w.name || shortAddress(w.address);
-        //         return `💳 ${label}`;
-        //     })
-        //     .join("\n");
-
         const walletList = selectedWallets
             .map(w => {
                 const label = w.name || shortAddress(w.address);
@@ -95,13 +92,12 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             })
             .join("\n");
 
-
-        // Confirmation message
+        // Confirmation message ${amount}
         const confirmationMessage =
             `You are about to submit a DCA order with following configuration:\n\n` +
-            `${mode.toUpperCase()} a total of ${amount} ${mode === "buy" ? "SUI" : "%"} ` +
+            `<b>${mode.toUpperCase()} a total of ${amountReadable} ${mode === "buy" ? "SUI" : "%"}</b>` +
             `worth of $${step.tokenInfo?.symbol ?? "??"} through multiple payments ` +
-            `with interval ${step.dcaInterval} for a period of ${step.dcaDuration}\n\n` +
+            `with interval <b>${formatDurationPretty(step.dcaInterval)}</b> for a period of <b>${formatDurationPretty(step.dcaDuration)}</b>\n\n` +
             `Selected wallets:\n${walletList}`;
 
         // Generate unique ID
@@ -123,7 +119,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
                     duration: step.dcaDuration,
                     interval: step.dcaInterval,
                     slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
-                    walletAddresses: selectedWallets.map(w => w.address), // ✅ always defined
+                    walletAddresses: selectedWallets.map(w => w.address), // always defined
                 },
             },
         });
