@@ -40,7 +40,6 @@ export async function handleBuySellOrder(ctx, action) {
         } else {
             newState = "awaiting_custom_sell_amount";
         }
-        // const newState = mode === "buy" ? "awaiting_custom_buy_amount" : "awaiting_custom_sell_amount";
 
         let orderMode = "market";
         if (isLimitOrder) {

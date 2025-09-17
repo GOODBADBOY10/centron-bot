@@ -110,14 +110,12 @@ export async function handleCustomAmountInput(ctx, step, userId) {
             tokenAddress,
             suiAmount,
             suiPercentage,
-            intervalMinutes: step.dcaIntervalMinutes,   // ✅ interval in minutes
-            durationMinutes: step.dcaDurationMinutes,   // ✅ total duration in minutes
+            intervalMinutes: step.dcaIntervalMinutes,   // interval in minutes
+            durationMinutes: step.dcaDurationMinutes,   // total duration in minutes
             times: step.times ?? 0,
             slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
             walletAddresses: selectedWallets.map(w => w.address), // always defined
         };
-
-        console.log("🟢 Saving DCA confirmation:", confirmId, confirmationData);
 
         await saveUserStep(userId, {
             ...step,
@@ -139,25 +137,6 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         //             intervalMinutes: step.dcaIntervalMinutes,         // ✅ interval in minutes
         //             durationMinutes: step.dcaDurationMinutes,         // ✅ total duration in minutes
         //             times: step.times ?? 0,
-        //             slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
-        //             walletAddresses: selectedWallets.map(w => w.address), // always defined
-        //         },
-        //     },
-        // });
-
-        // await saveUserStep(userId, {
-        //     ...step,
-        //     dcaConfirmations: {
-        //         ...(step.dcaConfirmations || {}),
-        //         [confirmId]: {
-        //             mode,
-        //             tokenAddress,
-        //             suiAmount,
-        //             suiPercentage,
-        //             intervalMinutes: step.dcaIntervalMinutes,
-        //             times: step.times ?? 0,
-        //             duration: step.dcaDuration,
-        //             interval: step.dcaInterval,
         //             slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
         //             walletAddresses: selectedWallets.map(w => w.address), // always defined
         //         },

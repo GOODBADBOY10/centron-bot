@@ -88,13 +88,13 @@ bot.action(/^view_orders_idx_(\d+)$/, async (ctx) => {
   const walletAddress = step.walletMap[`wallet_${index}`];
 
   // --- FETCH BALANCE DYNAMICALLY ---
-  // const balance = await getBalance(walletAddress);
-  // if (!balance || Number(balance.sui) <= 0) {
-  //   return ctx.answerCbQuery(
-  //     "You do not have any limit or DCA orders yet",
-  //     { show_alert: true }
-  //   );
-  // }
+  const balance = await getBalance(walletAddress);
+  if (!balance || Number(balance.sui) <= 0) {
+    return ctx.answerCbQuery(
+      "You do not have any limit or DCA orders yet",
+      { show_alert: true }
+    );
+  }
 
   // const wallet = step.walletMap[`wallet_${index}`];
 
@@ -170,7 +170,6 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
 
   const walletLimit = limitOrders.filter(o => o.walletAddress === walletAddress && o.tokenAddress === tokenAddress);
   const walletDca = dcaOrders.filter(o => o.walletAddress === walletAddress && o.tokenAddress === tokenAddress);
-  console.log("wallet of dca", walletDca);
 
   const tokenName = tokenAddress.split("::").pop();
 
@@ -189,7 +188,6 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
   // msg += `${tokenName} - <b>DCA Orders</b> for ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}\n\n`;
   msg += `${tokenName} - <b>DCA Orders</b> for ${walletLink}\n\n`;
   const buyDca = walletDca.filter(o => o.mode.toLowerCase() === "buy");
-  console.log("buyDca", buyDca);
   const sellDca = walletDca.filter(o => o.mode.toLowerCase() === "sell");
 
   // BUY summary
@@ -230,12 +228,6 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
       { text: "← Back", callback_data: `view_orders_idx_${walletIndex}` }
     ]
   ];
-
-  // await ctx.answerCbQuery();
-  // await ctx.editMessageText(msg, {
-  //   parse_mode: "HTML",
-  //   reply_markup: { inline_keyboard: keyboard }
-  // });
 
   const edited = await ctx.editMessageText(msg, {
     parse_mode: "HTML",
@@ -354,8 +346,8 @@ bot.action(/^confirm_dca_(.+)$/, async (ctx) => {
 
     await ctx.editMessageText(
       `✅ DCA ${mode} order saved for <b>${suiAmount ? (suiAmount / 1e9) + " SUI" : suiPercentage + "%"}</b> into $${step.tokenInfo?.symbol ?? "??"} ` +
-      `with payments every <b>${formatDurationPretty(interval)}</b> ${intervalMinutes}` +
-      `for <b>${formatDurationPretty(duration)}</b> ${durationMinutes}`,
+      `with payments every <b>${formatDurationPretty(intervalMinutes)}</b>` +
+      `for <b>${formatDurationPretty(durationMinutes)}</b>`,
       { parse_mode: "HTML" }
     );
 
