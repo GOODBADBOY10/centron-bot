@@ -346,12 +346,10 @@ bot.action(/^confirm_dca_(.+)$/, async (ctx) => {
       .join("\n");
 
     await ctx.editMessageText(
-      `✅ DCA <b>${mode}</b> order saved for ` +
-      `${suiAmount ? (suiAmount / 1e9) + " SUI" : suiPercentage + "%"}` +
-      ` into $${step.tokenInfo?.symbol ?? "??"} ` +
-      `with payments every <b>${formatDurationPretty(interval)}</b> for <b>${formatDurationPretty(duration)}</b>`,
+      `✅ DCA ${mode} order saved for <b>${suiAmount ? (suiAmount / 1e9) + " SUI" : suiPercentage + "%"}</b> into $${step.tokenInfo?.symbol ?? "??"} ` +
+      `with payments every <b>${formatDurationPretty(interval)}</b> ` + 
+      `for <b>${formatDurationPretty(duration)}</b>`,
       { parse_mode: "HTML" }
-
     );
 
   } catch (err) {
