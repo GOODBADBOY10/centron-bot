@@ -198,7 +198,7 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
     const readableTotal = formatSui(totalSui);
     const interval = formatDuration(buyDca[0].intervalMinutes) || "?";
     const totalPeriod = formatDuration(buyDca[0].intervalDuration) || "?"; // use duration from order
-    msg += `BUY:\nTotal <b>${readableTotal} SUI</b> worth of ${tokenName} through multiple payments with <b> interval ${interval}</b> for a <b>period of ${totalPeriod}</b>[cancel] \n\n`;
+    msg += `BUY:\nTotal <b>${readableTotal} SUI</b> worth of ${tokenName} through multiple payments with <b> interval ${interval}</b> for a <b>period of ${totalPeriod}</b> [cancel] \n\n`;
   } else {
     msg += "BUY:\nNo buy orders.\n\n";
   }
@@ -210,7 +210,7 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
     const interval = formatDuration(sellDca[0].intervalMinutes) || "?";
     const totalPeriod = formatDuration(sellDca[0].intervalDuration) || "?";
 
-    msg += `SELL:\nTotal <b>${readableTotal} SUI</b> worth of ${tokenName} through multiple payments with <b> interval ${interval}</b> for a <b>period of ${totalPeriod}</b>[cancel]\n`;
+    msg += `SELL:\nTotal <b>${readableTotal} SUI</b> worth of ${tokenName} through multiple payments with <b> interval ${interval}</b> for a <b>period of ${totalPeriod}</b> [cancel]\n\n`;
   } else {
     msg += "SELL:\nNo sell orders.\n";
   }
