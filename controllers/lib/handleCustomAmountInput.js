@@ -105,24 +105,45 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         const confirmKey = `confirm_dca_${confirmId}`;
 
         // Save mapping (store all wallet addresses safely)
-        // Save mapping (store all wallet addresses safely)
+        const confirmationData = {
+            mode,
+            tokenAddress,
+            suiAmount,
+            suiPercentage,
+            intervalMinutes: step.dcaIntervalMinutes,   // ✅ interval in minutes
+            durationMinutes: step.dcaDurationMinutes,   // ✅ total duration in minutes
+            times: step.times ?? 0,
+            slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
+            walletAddresses: selectedWallets.map(w => w.address), // always defined
+        };
+
+        console.log("🟢 Saving DCA confirmation:", confirmId, confirmationData);
+
         await saveUserStep(userId, {
             ...step,
             dcaConfirmations: {
                 ...(step.dcaConfirmations || {}),
-                [confirmId]: {
-                    mode,
-                    tokenAddress,
-                    suiAmount,
-                    suiPercentage,
-                    intervalMinutes: step.dcaIntervalMinutes,         // ✅ interval in minutes
-                    durationMinutes: step.dcaDurationMinutes,         // ✅ total duration in minutes
-                    times: step.times ?? 0,
-                    slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
-                    walletAddresses: selectedWallets.map(w => w.address), // always defined
-                },
+                [confirmId]: confirmationData,
             },
         });
+
+        // await saveUserStep(userId, {
+        //     ...step,
+        //     dcaConfirmations: {
+        //         ...(step.dcaConfirmations || {}),
+        //         [confirmId]: {
+        //             mode,
+        //             tokenAddress,
+        //             suiAmount,
+        //             suiPercentage,
+        //             intervalMinutes: step.dcaIntervalMinutes,         // ✅ interval in minutes
+        //             durationMinutes: step.dcaDurationMinutes,         // ✅ total duration in minutes
+        //             times: step.times ?? 0,
+        //             slippage: mode === "buy" ? step.buySlippage : step.sellSlippage,
+        //             walletAddresses: selectedWallets.map(w => w.address), // always defined
+        //         },
+        //     },
+        // });
 
         // await saveUserStep(userId, {
         //     ...step,
