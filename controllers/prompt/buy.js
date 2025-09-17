@@ -114,19 +114,20 @@ export async function handleBuySellOrder(ctx, action) {
                     results.push(`❌ ${wallet.name || shortAddress(address)}: Missing DCA duration or interval.`);
                     continue;
                 }
-                await saveUserStep(userId, {
+                const updatedStep = {
                     ...step,
-                    pendingOrder: { 
-                        mode, 
-                        suiAmount, 
-                        suiPercentage, 
-                        type: "dca" 
+                    pendingOrder: {
+                        mode,
+                        suiAmount,
+                        suiPercentage,
+                        type: "dca"
                     },
                     state: "awaiting_dca_confirmation",
-                });
-                
+                };
+                await saveUserStep(userId, updatedStep);
                 try {
-                    return showDcaConfirmation(ctx, userId, step, { mode, suiAmount });
+                    return showDcaConfirmation(ctx, userId, updatedStep, { mode, suiAmount });
+                    // return showDcaConfirmation(ctx, userId, step, { mode, suiAmount });
                 } catch (err) {
                     console.error("❌ DCA failure:", err);
                     return ctx.reply("❌ Something went wrong with DCA order. Please try again.");

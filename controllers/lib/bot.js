@@ -196,8 +196,11 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
   if (buyDca.length > 0) {
     const totalSui = buyDca.reduce((sum, o) => sum + Number(o.suiAmount), 0);
     const readableTotal = formatSui(totalSui);
+
     const interval = formatDuration(buyDca[0].intervalMinutes) || "?";
-    const totalPeriod = formatDuration(buyDca[0].intervalDuration) || "?"; // use duration from order
+    const totalPeriod = formatDuration(buyDca[0].durationMinutes || buyDca[0].duration) || "?";
+    // const interval = formatDuration(buyDca[0].intervalMinutes) || "?";
+    // const totalPeriod = formatDuration(buyDca[0].intervalDuration) || "?"; // use duration from order
     msg += `BUY:\nTotal <b>${readableTotal} SUI</b> worth of ${tokenName} through multiple payments with <b> interval ${interval}</b> for a <b>period of ${totalPeriod}</b> [cancel] \n\n`;
   } else {
     msg += "BUY:\nNo buy orders.\n\n";
@@ -208,7 +211,8 @@ bot.action(/^view_token_orders_(\d+)_token_(\d+)$/, async (ctx) => {
     const totalSui = sellDca.reduce((sum, o) => sum + Number(o.suiAmount), 0);
     const readableTotal = formatSui(totalSui);
     const interval = formatDuration(sellDca[0].intervalMinutes) || "?";
-    const totalPeriod = formatDuration(sellDca[0].intervalDuration) || "?";
+    const totalPeriod = formatDuration(sellDca[0].durationMinutes || sellDca[0].duration) || "?";
+    // const totalPeriod = formatDuration(sellDca[0].intervalDuration || sellDca[0].duration) || "?";
 
     msg += `SELL:\nTotal <b>${readableTotal} SUI</b> worth of ${tokenName} through multiple payments with <b> interval ${interval}</b> for a <b>period of ${totalPeriod}</b> [cancel]\n\n`;
   } else {
@@ -349,7 +353,7 @@ bot.action(/^confirm_dca_(.+)$/, async (ctx) => {
 
     await ctx.editMessageText(
       `✅ DCA ${mode} order saved for <b>${suiAmount ? (suiAmount / 1e9) + " SUI" : suiPercentage + "%"}</b> into $${step.tokenInfo?.symbol ?? "??"} ` +
-      `with payments every <b>${formatDurationPretty(interval)}</b> ` + 
+      `with payments every <b>${formatDurationPretty(interval)}</b> ` +
       `for <b>${formatDurationPretty(duration)}</b>`,
       { parse_mode: "HTML" }
     );
