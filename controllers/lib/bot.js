@@ -323,7 +323,7 @@ bot.action(/^confirm_dca_(.+)$/, async (ctx) => {
       return ctx.reply("❌ No pending DCA order found or it expired.");
     }
 
-    const { mode, tokenAddress, suiAmount, suiPercentage, intervalMinutes, times, duration, interval, slippage, walletAddresses } = pending;
+    const { mode, tokenAddress, suiAmount, suiPercentage, intervalMinutes, durationMinutes, times, duration, interval, slippage, walletAddresses } = pending;
 
     // 🔹 Save one order per wallet
     for (const walletAddress of walletAddresses) {
@@ -335,6 +335,7 @@ bot.action(/^confirm_dca_(.+)$/, async (ctx) => {
         suiAmount,
         suiPercentage,
         intervalMinutes,
+        durationMinutes,
         times,
         duration,
         interval,
@@ -353,8 +354,8 @@ bot.action(/^confirm_dca_(.+)$/, async (ctx) => {
 
     await ctx.editMessageText(
       `✅ DCA ${mode} order saved for <b>${suiAmount ? (suiAmount / 1e9) + " SUI" : suiPercentage + "%"}</b> into $${step.tokenInfo?.symbol ?? "??"} ` +
-      `with payments every <b>${formatDurationPretty(interval)}</b> ` +
-      `for <b>${formatDurationPretty(duration)}</b>`,
+      `with payments every <b>${formatDurationPretty(interval)}</b> ${intervalMinutes}` +
+      `for <b>${formatDurationPretty(duration)}</b> ${durationMinutes}`,
       { parse_mode: "HTML" }
     );
 
