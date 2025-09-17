@@ -81,12 +81,20 @@ export async function handleCustomAmountInput(ctx, step, userId) {
         }).filter(Boolean);
 
         // Build wallet list (multiple)
+        // const walletList = selectedWallets
+        //     .map(w => {
+        //         const label = w.name || shortAddress(w.address);
+        //         return `💳 ${label}`;
+        //     })
+        //     .join("\n");
+
         const walletList = selectedWallets
             .map(w => {
                 const label = w.name || shortAddress(w.address);
-                return `💳 ${label}`;
+                return `💳 <a href="https://suiexplorer.com/address/${w.address || w.walletAddress}?network=mainnet" target="_blank">${label}</a>`;
             })
             .join("\n");
+
 
         // Confirmation message
         const confirmationMessage =
