@@ -88,13 +88,13 @@ bot.action(/^view_orders_idx_(\d+)$/, async (ctx) => {
   const walletAddress = step.walletMap[`wallet_${index}`];
 
   // --- FETCH BALANCE DYNAMICALLY ---
-  const balance = await getBalance(walletAddress);
-  if (!balance || Number(balance.sui) <= 0) {
-    return ctx.answerCbQuery(
-      "You do not have any limit or DCA orders yet",
-      { show_alert: true }
-    );
-  }
+  // const balance = await getBalance(walletAddress);
+  // if (!balance || Number(balance.sui) <= 0) {
+  //   return ctx.answerCbQuery(
+  //     "You do not have any limit or DCA orders yet",
+  //     { show_alert: true }
+  //   );
+  // }
 
   // const wallet = step.walletMap[`wallet_${index}`];
 

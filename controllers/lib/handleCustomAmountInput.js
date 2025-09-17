@@ -135,6 +135,7 @@ export async function handleCustomAmountInput(ctx, step, userId) {
 
         return ctx.reply(confirmationMessage, {
             parse_mode: "HTML",
+            disable_web_page_preview: true,
             reply_markup: confirmationKeyboard
         });
     }
