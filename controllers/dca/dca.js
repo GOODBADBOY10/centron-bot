@@ -34,7 +34,7 @@ export async function checkPendingDcaOrders() {
             } catch (err) {
                 console.error('failed to decrypt wallet', err);
             }
-            // const phrase = wallet?.seedPhrase || wallet?.privateKey;
+
             if (!phrase) {
                 console.warn(`⚠️ Missing phrase for wallet ${order.walletAddress}`);
                 continue;
